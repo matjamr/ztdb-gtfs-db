@@ -13,8 +13,6 @@ Zakres projektu obejmuje:
 	•	Deployment:
 		•	Automatyzacja za pomocą Makefile
 		•	Dockerizacja całego środowiska (backend, baza danych, ewentualnie UI, możliwa konfiguracja środowiska za pomocą minikube - kubernetesCLI)
-		•	Konfiguracja certyfikatów SSL/TLS do obsługi HTTPS
-		•	Skalowalność: Analiza potrzeby sharding, replikacji, zapewnienie rozkładania obciążenia.
 	•	Front-end: Minimum 4 endpointy dla obsługi podstawowego interfejsu użytkownika (np. wyświetl, dodaj, edytuj, usuń).
 
 Cel porównawczy:
