@@ -1,7 +1,7 @@
 URL=https://kolejemalopolskie.com.pl/rozklady_jazdy/ald-gtfs.zip
 FILE=gtfs.zip
 
-all: download up load
+bootstrap: download up load clean
 
 download:
 	wget -O $(FILE) $(URL)
@@ -17,13 +17,25 @@ up:
 	docker logs $$CID | head -n 20
 
 load:
-	@echo "Starting loading data to db"
+	@echo "Rozpoczecie ladowania danych do bazy"
 	unzip -o gtfs.zip -d gtfs
-	docker cp deployment/neo4j/import_gtfs.cypher $$CID:/import/gtfs/import_gtfs.cypher
+
 	@CID=$$(docker-compose ps -q neo4j); \
-	docker cp $(FILE) $$CID:/import/$(FILE); \
-	docker exec $$CID sh -c "unzip -o /import/$(FILE) -d /import/gtfs"; \
-	docker exec $$CID cypher-shell -u neo4j -p VeryStrongPassword2137! -f /import/gtfs/import_gtfs.cypher
+	docker cp gtfs $$CID:/import
+
+	@CID=$$(docker-compose ps -q neo4j); \
+	docker cp deployment/neo4j/import.sh $$CID:/import/gtfs
+
+	@CID=$$(docker-compose ps -q neo4j); \
+	docker exec $$CID chmod 777 /import/gtfs/import.sh
+
+	@CID=$$(docker-compose ps -q neo4j); \
+	printf 'bash /import/gtfs/import.sh\n' | docker exec -i $$CID bash -s
+	@echo "Zaladowane dane do bazy."
 
 clean:
-	rm -f $(FILE)
+	@echo "Usuwanie niepotrzebnych danych"
+	rm -f gtfs.zip
+
+down:
+	docker-compose down

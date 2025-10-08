@@ -118,13 +118,7 @@ done
 # ============================================================
 
 print_header "KROK 0: CZYSZCZENIE BAZY"
-read -p "Czy chcesz wyczyścić bazę danych? (t/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Tt]$ ]]; then
-    execute_cypher "MATCH (n) DETACH DELETE n;" "Czyszczenie bazy danych"
-else
-    print_info "Pominięto czyszczenie bazy"
-fi
+execute_cypher "MATCH (n) DETACH DELETE n;" "Czyszczenie bazy danych"
 
 # ============================================================
 # KROK 1: TWORZENIE OGRANICZEŃ I INDEKSÓW - ROZSZERZONE
