@@ -35,7 +35,7 @@ load:
 
 clean:
 	@echo "Usuwanie niepotrzebnych danych"
-	rm -f gtfs.zip
+	rm -rf gtfs.zip gtfs
 
 down:
 	docker-compose down
