@@ -7,20 +7,17 @@
 # Naprawiona wersja z optimizacjami dla dużych plików
 # ============================================================
 
-# Kolory dla outputu
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Konfiguracja Neo4j
 NEO4J_USER="neo4j"
 NEO4J_PASSWORD="VeryStrongPassword2137!"
 NEO4J_HOST="localhost:7687"
 NEO4J_DATABASE="neo4j"
 
-# Ścieżka do plików GTFS (folder gdzie znajdują się pliki .txt)
 GTFS_PATH="/import/gtfs"
 
 # ============================================================
@@ -78,7 +75,6 @@ check_file() {
 
 print_header "SPRAWDZANIE WYMAGAŃ"
 
-# Sprawdź cypher-shell
 if ! command -v cypher-shell &> /dev/null; then
     print_error "cypher-shell nie jest zainstalowany!"
     echo "Zainstaluj Neo4j lub dodaj cypher-shell do PATH"
@@ -86,7 +82,6 @@ if ! command -v cypher-shell &> /dev/null; then
 fi
 print_success "cypher-shell znaleziony"
 
-# Sprawdź połączenie z Neo4j
 echo "RETURN 1 as test;" | cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
     -a "$NEO4J_HOST" -d "$NEO4J_DATABASE" --format plain &> /dev/null
 
@@ -100,14 +95,12 @@ if [ $? -ne 0 ]; then
 fi
 print_success "Połączenie z Neo4j OK"
 
-# Sprawdź folder GTFS
 if [ ! -d "$GTFS_PATH" ]; then
     print_error "Folder GTFS nie istnieje: $GTFS_PATH"
     exit 1
 fi
 print_success "Folder GTFS znaleziony: $GTFS_PATH"
 
-# Sprawdź wymagane pliki
 REQUIRED_FILES=("stops.txt" "routes.txt" "trips.txt" "stop_times.txt")
 for file in "${REQUIRED_FILES[@]}"; do
     check_file "$GTFS_PATH/$file" || exit 1

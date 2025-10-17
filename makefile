@@ -24,13 +24,13 @@ load:
 	docker cp gtfs $$CID:/import
 
 	@CID=$$(docker-compose ps -q neo4j); \
-	docker cp deployment/neo4j/import.sh $$CID:/import/gtfs
+# 	docker cp deployment/neo4j/import.sh $$CID:/import/gtfs
 
 	@CID=$$(docker-compose ps -q neo4j); \
-	docker exec $$CID chmod 777 /import/gtfs/import.sh
+# 	docker exec $$CID chmod 777 /import/gtfs/import.sh
 
 	@CID=$$(docker-compose ps -q neo4j); \
-	printf 'bash /import/gtfs/import.sh\n' | docker exec -i $$CID bash -s
+# 	printf 'bash /import/gtfs/import.sh\n' | docker exec -i $$CID bash -s
 	@echo "Zaladowane dane do bazy."
 
 clean:
