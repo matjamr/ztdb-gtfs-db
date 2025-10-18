@@ -1,14 +1,13 @@
 package it.edu.pk.ztdbbackend.repository;
 
+import it.edu.pk.ztdbbackend.api.TripOneStopProjection;
+import it.edu.pk.ztdbbackend.api.TripProjection;
 import it.edu.pk.ztdbbackend.entity.Stoptime;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
 
@@ -79,60 +78,67 @@ public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
             @Param("skip") int skip,
             @Param("limit") int limit);
 
-
-
-    @Query(
-            "MATCH\n" +
-            "  (cd:CalendarDate)\n" +
-            "WHERE \n" +
-            "    cd.date = $travelDate AND \n" +
-            "    cd.exception_type = '1'\n" +
-            "WITH cd\n" +
-            "MATCH\n" +
-            "    p3=(orig:Stop {name: $origStation})<-[:LOCATED_AT]-(st_orig:Stoptime)-[r1:PART_OF_TRIP]->(trp1:Trip),\n" +
-            "    p4=(dest:Stop {name:$destStation})<-[:LOCATED_AT]-(st_dest:Stoptime)-[r2:PART_OF_TRIP]->(trp2:Trip),\n" +
-            "    p1=(st_orig)-[im1:PRECEDES*]->(st_midway_arr:Stoptime),\n"+
-            "    p5=(st_midway_arr)-[:LOCATED_AT]->(midway:Stop)<-[:LOCATED_AT]-(st_midway_dep:Stoptime),\n" +
-            "    p2=(st_midway_dep)-[im2:PRECEDES*]->(st_dest)\n" +
-            "WHERE\n" +
-            "  st_orig.departure_time > $origArrivalTimeLow\n" +
-            "  AND st_orig.departure_time < $origArrivalTimeHigh\n" +
-            "  AND st_dest.arrival_time < $destArrivalTimeHigh\n" +
-            "  AND st_dest.arrival_time > $destArrivalTimeLow\n" +
-            "  AND st_midway_arr.arrival_time > st_orig.departure_time\n"+
-            "  AND st_midway_dep.departure_time > st_midway_arr.arrival_time\n" +
-            "  AND st_dest.arrival_time > st_midway_dep.departure_time\n" +
-            "  AND trp1.service_id = cd.service_id\n" +
-            "  AND trp2.service_id = cd.service_id\n" +
-            "WITH\n"+
-            "  st_orig, st_dest, nodes(p1) + nodes(p2) AS allStops1\n" +
-            "ORDER BY\n" +
-            "    (st_dest.arrival_time_int-st_orig.departure_time_int) ASC\n" +
-            "SKIP $skip LIMIT 1\n" +
-            "UNWIND\n" +
-            "  allStops1 AS stoptime\n" +
-            "MATCH\n" +
-            "  p6=(loc:Stop)<-[r:LOCATED_AT]-(stoptime)-[r2:PART_OF_TRIP]->(trp5:Trip),\n" +
-            "  (stoptime)-[im1:PRECEDES*]->(stoptime2)\n" +
-            "RETURN\n" +
-            "  p6\n" +
-            "ORDER BY stoptime.departure_time_int ASC\n" +
-            ";")
-    <T> List<T> getMyTripsOneStop(
-                                        @Param("travelDate") String travelDate,
-                                        @Param("origStation") String origStation,
-                                        @Param("origArrivalTimeLow") String origArrivalTimeLow,
-                                        @Param("origArrivalTimeHigh") String origArrivalTimeHigh,
-                                        @Param("destStation") String destStation,
-                                        @Param("destArrivalTimeLow") String destArrivalTimeLow,
-                                        @Param("destArrivalTimeHigh")String destArrivalTimeHigh,
-                                        @Param("skip")Long skip,
-                                        Class<T> type
-                                    );
-
-    @Query("MATCH (s:Stoptime)-[*1..$depth]-(related) WHERE id(s) = $id RETURN s, collect(related)")
-    Optional<Stoptime> findByIdWithDepth(@Param("id") Long id, @Param("depth") int depth);
-
+    @Query("""
+        WITH $stopA AS stopA,
+             $stopB AS stopB,
+             $departureAfter AS departure_after,
+             $departureBefore AS departure_before
+        
+        // Stops from A
+        MATCH (a:Stop {name: stopA})<-[:LOCATED_AT]-(st_a:Stoptime)-[:PART_OF_TRIP]->(trip_a:Trip)
+        MATCH (st_a)-[:PRECEDES*0..30]->(st_mid_a:Stoptime)-[:LOCATED_AT]->(mid:Stop)
+        WITH stopA, stopB, departure_after, departure_before, collect(DISTINCT mid.name) AS stops_from_A
+        
+        // Stops from B
+        MATCH (b:Stop {name: stopB})<-[:LOCATED_AT]-(st_b:Stoptime)
+        MATCH (st_mid_b:Stoptime)-[:PART_OF_TRIP]->(trip_b:Trip)
+        MATCH (st_mid_b)-[:PRECEDES*0..30]->(st_b)
+        MATCH (st_mid_b)-[:LOCATED_AT]->(mid2:Stop)
+        WITH stopA, stopB, departure_after, departure_before, stops_from_A, collect(DISTINCT mid2.name) AS stops_to_B
+        
+        // Common Stops
+        WITH stopA, stopB, departure_after, departure_before,
+             [s IN stops_from_A WHERE s IN stops_to_B] AS common_stops
+        
+        // Find connections through each common stop
+        UNWIND common_stops AS transfer_stop
+        
+        MATCH (cd:CalendarDate)
+        MATCH (orig:Stop {name: stopA})<-[:LOCATED_AT]-(st_orig:Stoptime)-[:PART_OF_TRIP]->(trip:Trip),
+              (st_orig)-[:PRECEDES*1..50]->(st_dest:Stoptime)-[:LOCATED_AT]->(dest:Stop {name: transfer_stop})
+          WHERE trip.service_id = cd.service_id
+          AND st_orig.departure_time > departure_after
+          AND st_orig.departure_time < departure_before
+          AND st_dest.arrival_time_int > st_orig.departure_time_int
+        
+        // Now find second leg from transfer to destination
+        MATCH (transfer:Stop {name: transfer_stop})<-[:LOCATED_AT]-(st_transfer:Stoptime)-[:PART_OF_TRIP]->(trip2:Trip),
+              (st_transfer)-[:PRECEDES*1..50]->(st_final:Stoptime)-[:LOCATED_AT]->(final:Stop {name: stopB})
+          WHERE trip2.service_id = cd.service_id
+          AND st_transfer.departure_time_int >= st_dest.arrival_time_int
+          AND st_final.arrival_time_int > st_transfer.departure_time_int
+        
+        RETURN
+          orig.name AS startStop,
+          st_orig.departure_time AS startDeparture,
+          dest.name AS transferStop,
+          st_dest.arrival_time AS arrivalAtTransfer,
+          st_transfer.departure_time AS departureFromTransfer,
+          final.name AS endStop,
+          st_final.arrival_time AS endArrival,
+          trip.id AS firstTripId,
+          trip2.id AS secondTripId,
+          (st_dest.arrival_time_int - st_orig.departure_time_int) / 60 AS firstLegMinutes,
+          (st_final.arrival_time_int - st_transfer.departure_time_int) / 60 AS secondLegMinutes,
+          ((st_final.arrival_time_int - st_orig.departure_time_int) / 60) AS totalTravelMinutes
+        ORDER BY totalTravelMinutes ASC
+        """)
+    List<TripOneStopProjection> findTripsWithOneTransfer(
+            @Param("stopA") String stopA,
+            @Param("stopB") String stopB,
+            @Param("departureAfter") String departureAfter,
+            @Param("departureBefore") String departureBefore
+    );
 }
 
 

@@ -7,7 +7,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class CalculatedResponse<T> {
     private T data;
-    private long seconds;
+    private long miliseconds;
     private String description;
 
     public static <T> CalculatedResponse<T> of(T result, long l, String description) {

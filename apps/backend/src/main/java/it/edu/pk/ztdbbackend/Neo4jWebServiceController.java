@@ -1,8 +1,6 @@
 package it.edu.pk.ztdbbackend;
 
-import it.edu.pk.ztdbbackend.api.CalculatedResponse;
-import it.edu.pk.ztdbbackend.api.MergedResponse;
-import it.edu.pk.ztdbbackend.api.TimeTakenResponse;
+import it.edu.pk.ztdbbackend.api.*;
 import it.edu.pk.ztdbbackend.entity.*;
 import it.edu.pk.ztdbbackend.repository.*;
 import lombok.extern.slf4j.Slf4j;
@@ -66,13 +64,13 @@ public class Neo4jWebServiceController {
         return stopRepository.findByNameWithDepth(stopName,1);
     }
 
-    @GetMapping(path = "/stoptime/{id}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-    @ResponseBody
-    //Example id: 1270015
-    public Stoptime getStopTime(@PathVariable Long id, Model model) {
-        return stoptimeRepository.findByIdWithDepth(id, 1).get();
-
-    }
+//    @GetMapping(path = "/stoptime/{id}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+//    @ResponseBody
+//    //Example id: 1270015
+//    public Stoptime getStopTime(@PathVariable Long id, Model model) {
+//        return stoptimeRepository.findByIdWithDepth(id, 1).get();
+//
+//    }
 
     @GetMapping(path = "/trip/{tripId}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     @ResponseBody
@@ -141,31 +139,26 @@ public class Neo4jWebServiceController {
 
         long endTime = System.currentTimeMillis();
 
-        return MergedResponse.<List<TripProjection>, List<TripProjection>>builder()
-                .neo4jData(CalculatedResponse.of(result, endTime-startTime, "Trip plan connection for neo4j between " + plan.getOrigStation() + " and " + plan.getDestStation()))
-                .neo4jData(CalculatedResponse.of(List.of(), 0, "Trip plan connection for postgresql between " + plan.getOrigStation() + " and " + plan.getDestStation()))
-                .build();
+        return new MergedResponse<List<TripProjection>, List<TripProjection>>(
+                CalculatedResponse.of(result, endTime-startTime, "Trip plan connection for neo4j between " + plan.getOrigStation() + " and " + plan.getDestStation()),
+                CalculatedResponse.of(List.of(), 0, "Trip plan connection for postgresql between " + plan.getOrigStation() + " and " + plan.getDestStation()));
     }
 
     @PostMapping(value = "/trip/nondirect")
-    public MergedResponse<List<TripProjection>, List<TripProjection>>  planTripNonDirect(@RequestBody TripPlan plan){
+    public MergedResponse<List<TripOneStopProjection>, List<TripOneStopProjection>>  planTripNonDirect(@RequestBody NonDirectTripPlan plan){
         long startTime = System.currentTimeMillis();
-        var result = stoptimeRepository.getMyTrips(
-                plan.getTravelDate(),
-                plan.getOrigStation(),
-                plan.getOrigArrivalTimeLow(),
-                plan.getOrigArrivalTimeHigh(),
-                plan.getDestStation(),
-                plan.getDestArrivalTimeLow(),
-                plan.getDestArrivalTimeHigh(),
-                0, 100);
+        var result = stoptimeRepository.findTripsWithOneTransfer(
+                plan.getDestination(),
+                plan.getOrigin(),
+                plan.getDepartureBefore(),
+                plan.getDepartureBefore());
 
         long endTime = System.currentTimeMillis();
 
-        return MergedResponse.<List<TripProjection>, List<TripProjection>>builder()
-                .neo4jData(CalculatedResponse.of(result, endTime-startTime, "Trip plan connection for neo4j between " + plan.getOrigStation() + " and " + plan.getDestStation()))
-                .neo4jData(CalculatedResponse.of(List.of(), 0, "Trip plan connection for postgresql between " + plan.getOrigStation() + " and " + plan.getDestStation()))
-                .build();
+        return new MergedResponse<List<TripOneStopProjection>, List<TripOneStopProjection>>(
+                CalculatedResponse.of(result, endTime-startTime, "Trip plan connection for neo4j between " + plan.getOrigin() + " and " + plan.getDestination()),
+                CalculatedResponse.of(List.of(), 0, "Trip plan connection for postgresql between " + plan.getOrigin() + " and " + plan.getDestination()));
+
     }
 
 }

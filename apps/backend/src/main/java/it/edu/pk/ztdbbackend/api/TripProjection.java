@@ -1,4 +1,4 @@
-package it.edu.pk.ztdbbackend.repository;
+package it.edu.pk.ztdbbackend.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

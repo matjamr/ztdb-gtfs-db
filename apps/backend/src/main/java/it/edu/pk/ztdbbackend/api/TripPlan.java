@@ -1,4 +1,4 @@
-package it.edu.pk.ztdbbackend;
+package it.edu.pk.ztdbbackend.api;
 
 import lombok.Data;
 
