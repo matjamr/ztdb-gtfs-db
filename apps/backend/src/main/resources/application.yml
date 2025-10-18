@@ -1,3 +1,9 @@
 spring:
-  application:
-    name: "ztdb-backend"
+  neo4j:
+    authentication:
+      username: neo4j
+      password: VeryStrongPassword2137!
+
+logging:
+  level:
+    org.springframework.data.neo4j: DEBUG

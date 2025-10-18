@@ -1,0 +1,31 @@
+package it.edu.pk.ztdbbackend.repository;
+
+import it.edu.pk.ztdbbackend.entity.Stop;
+import org.springframework.data.neo4j.repository.Neo4jRepository;
+import org.springframework.data.neo4j.repository.query.Query;
+import org.springframework.data.repository.query.Param;
+
+public interface StopRepository extends Neo4jRepository<Stop, String> {
+    @Query(
+            "//connect parent/child relationships to stops\n" +
+            "load csv with headers from\n" +
+            "'file:///stops.txt' as csv\n" +
+            "with csv\n" +
+            "  where not (csv.parent_station is null)\n" +
+            "match (ps:Stop {id: csv.parent_station}), (s:Stop {id: csv.stop_id})\n" +
+            "create (ps)<-[:PART_OF]-(s);")
+    void connectParentChild ();
+
+    @Query( "//add the stops\n" +
+            "LOAD CSV WITH HEADERS FROM\n" +
+            "'file:///stops.txt' AS csv\n" +
+            "CREATE (s:Stop {id: csv.stop_id, name: csv.stop_name, lat: toFloat(csv.stop_lat), lon: toFloat(csv.stop_lon), platform_code: csv.platform_code, parent_station: csv.parent_station, location_type: csv.location_type});\n")
+    void addStops();
+
+    //Stop findByName(@Param("stopName") String stopName,@Depth @Param("depth") int depth);
+
+    @Query("MATCH (s:Stop {name: $stopName})-[*1..$depth]-(related) RETURN s, collect(related)")
+    Stop findByNameWithDepth(@Param("stopName") String stopName, @Param("depth") int depth);
+
+
+}
