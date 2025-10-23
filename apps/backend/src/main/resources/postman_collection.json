@@ -1,0 +1,267 @@
+{
+  "info": {
+    "name": "Ztdb Backend API",
+    "_postman_id": "b7f0a9e4-6e2a-4f0d-9c0a-1d8a3f7c0a10",
+    "description": "Postman collection for the Ztdb Backend endpoints, including trips at stop, stops for route (calculated), paginated trips for route, and trip planning.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "routeId",
+      "value": "13"
+    },
+    {
+      "key": "stopName",
+      "value": "WESTWOOD"
+    },
+    {
+      "key": "agencyId",
+      "value": "NJT"
+    },
+    {
+      "key": "tripId",
+      "value": "TRIP_001"
+    },
+    {
+      "key": "date",
+      "value": "20200101"
+    },
+    {
+      "key": "page",
+      "value": "0"
+    },
+    {
+      "key": "size",
+      "value": "50"
+    }
+  ],
+  "item": [
+    {
+      "name": "GET /api/route/{routeId}/stops (CalculatedResponse)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/route/{{routeId}}/stops",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "route",
+            "{{routeId}}",
+            "stops"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/route/{routeId}/trips (paginated, optional date)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/route/{{routeId}}/trips?date={{date}}&page={{page}}&size={{size}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "route",
+            "{{routeId}}",
+            "trips"
+          ],
+          "query": [
+            {"key": "date", "value": "{{date}}"},
+            {"key": "page", "value": "{{page}}"},
+            {"key": "size", "value": "{{size}}"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/stop/{stopName}/trips (paginated, optional date)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/stop/{{stopName}}/trips?date={{date}}&page={{page}}&size={{size}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "stop",
+            "{{stopName}}",
+            "trips"
+          ],
+          "query": [
+            {"key": "date", "value": "{{date}}"},
+            {"key": "page", "value": "{{page}}"},
+            {"key": "size", "value": "{{size}}"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /api/trip/direct",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"travelDate\": \"20200101\",\n  \"origStation\": \"WESTWOOD\",\n  \"origArrivalTimeLow\": \"08:00:00\",\n  \"origArrivalTimeHigh\": \"09:00:00\",\n  \"destStation\": \"HOBOKEN\",\n  \"destArrivalTimeLow\": \"08:30:00\",\n  \"destArrivalTimeHigh\": \"12:00:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/trip/direct",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "trip",
+            "direct"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /api/trip/nondirect",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"origin\": \"WESTWOOD\",\n  \"destination\": \"NEW YORK\",\n  \"departureAfter\": \"08:00:00\",\n  \"departureBefore\": \"10:00:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/trip/nondirect",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "trip",
+            "nondirect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/agency/{agencyId}",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/agency/{{agencyId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "agency",
+            "{{agencyId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/agency/{agencyId}/routes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/agency/{{agencyId}}/routes",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "agency",
+            "{{agencyId}}",
+            "routes"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/route/{routeId}",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/route/{{routeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "route",
+            "{{routeId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/stop/{stopName}",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/stop/{{stopName}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "stop",
+            "{{stopName}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/trip/{tripId}",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/trip/{{tripId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "trip",
+            "{{tripId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST /api/load (no body)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/load",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "load"
+          ]
+        }
+      }
+    }
+  ]
+}

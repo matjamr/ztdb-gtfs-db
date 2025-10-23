@@ -5,6 +5,8 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 /**
  * Created by tgulesserian on 5/18/17.
  */
@@ -21,4 +23,20 @@ public interface TripRepository extends Neo4jRepository<Trip, String>,Importable
     @Query("MATCH (t:Trip {id: $tripId})-[*1..$depth]-(related) RETURN t, collect(related)")
     Trip findByTripIdWithDepth(@Param("tripId") String tripId, @Param("depth") int depth);
 
+    @Query("""
+        WITH $travelDate AS travelDate
+        OPTIONAL MATCH (cd:CalendarDate {date: travelDate})
+        MATCH (r:Route {id: $routeId})<-[:USES]-(t:Trip)
+        WHERE (travelDate IS NULL OR t.service_id = cd.service_id)
+        RETURN t
+        ORDER BY t.id ASC
+        SKIP $skip
+        LIMIT $limit
+    """)
+    List<Trip> findTripsForRoute(
+            @Param("routeId") String routeId,
+            @Param("travelDate") String travelDate,
+            @Param("skip") int skip,
+            @Param("limit") int limit
+    );
 }

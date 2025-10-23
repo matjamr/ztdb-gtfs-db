@@ -44,7 +44,6 @@ public class Neo4jWebServiceController {
 
     @GetMapping(path = "/agency/{agencyId}/routes", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     @ResponseBody
-    //Example id: NJT
     public Set<Route> getAgencyRoutes(@PathVariable String agencyId, Model model) {
         Agency agency = agencyRepository.findByAgencyIdWithDepth(agencyId,1);
         return agency.routes;
@@ -52,29 +51,41 @@ public class Neo4jWebServiceController {
 
     @GetMapping(path = "/route/{routeId}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     @ResponseBody
-    //Example id: 13
     public Route getRoute(@PathVariable String routeId, Model model) {
         return routeRepository.findByRouteIdWithDepth(routeId,1);
     }
 
+    @GetMapping(path = "/route/{routeId}/stops", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @ResponseBody
+    public CalculatedResponse<List<Stop>> getRouteStops(@PathVariable String routeId) {
+        long startTime = System.currentTimeMillis();
+        List<Stop> stops = stopRepository.findStopsForRoute(routeId);
+        long endTime = System.currentTimeMillis();
+        return CalculatedResponse.of(stops, endTime - startTime, "All stops for route '" + routeId + "'");
+    }
+
+    @GetMapping(path = "/route/{routeId}/trips", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @ResponseBody
+    public CalculatedResponse<List<Trip>> getTripsForRoute(
+            @PathVariable String routeId,
+            @RequestParam(required = false) String date,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        long startTime = System.currentTimeMillis();
+        int skip = Math.max(0, page) * Math.max(1, size);
+        List<Trip> trips = tripRepository.findTripsForRoute(routeId, date, skip, size);
+        long endTime = System.currentTimeMillis();
+        return CalculatedResponse.of(trips, endTime - startTime, "All trips for route '" + routeId + "'" + (date != null ? (" on date " + date) : ""));
+    }
+
     @GetMapping(path = "/stop/{stopName}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     @ResponseBody
-    //Example name: WESTWOOD
     public Stop getStop(@PathVariable String stopName, Model model) {
         return stopRepository.findByNameWithDepth(stopName,1);
     }
 
-//    @GetMapping(path = "/stoptime/{id}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
-//    @ResponseBody
-//    //Example id: 1270015
-//    public Stoptime getStopTime(@PathVariable Long id, Model model) {
-//        return stoptimeRepository.findByIdWithDepth(id, 1).get();
-//
-//    }
-
     @GetMapping(path = "/trip/{tripId}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     @ResponseBody
-    //Example id: 22
     public Trip getTrip(@PathVariable String tripId, Model model) {
         return tripRepository.findByTripIdWithDepth(tripId, 1);
 
@@ -161,4 +172,18 @@ public class Neo4jWebServiceController {
 
     }
 
+
+    @GetMapping(path = "/stop/{stopName}/trips", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
+    @ResponseBody
+    public CalculatedResponse<List<TripsAtStopProjection>> getTripsAtStop(
+            @PathVariable String stopName,
+            @RequestParam(required = false) String date,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        long startTime = System.currentTimeMillis();
+        int skip = Math.max(0, page) * Math.max(1, size);
+        var result = stoptimeRepository.findTripsAtStop(stopName, date, skip, size);
+        long endTime = System.currentTimeMillis();
+        return CalculatedResponse.of(result, endTime - startTime, "All trips at stop '" + stopName + "'" + (date != null ? (" on date " + date) : ""));
+    }
 }

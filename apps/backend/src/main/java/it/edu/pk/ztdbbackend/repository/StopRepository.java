@@ -5,6 +5,8 @@ import org.springframework.data.neo4j.repository.Neo4jRepository;
 import org.springframework.data.neo4j.repository.query.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface StopRepository extends Neo4jRepository<Stop, String> {
     @Query(
             "//connect parent/child relationships to stops\n" +
@@ -27,5 +29,10 @@ public interface StopRepository extends Neo4jRepository<Stop, String> {
     @Query("MATCH (s:Stop {name: $stopName})-[*1..$depth]-(related) RETURN s, collect(related)")
     Stop findByNameWithDepth(@Param("stopName") String stopName, @Param("depth") int depth);
 
+    @Query("""
+        MATCH (r:Route {id: $routeId})<-[:USES]-(t:Trip)<-[:PART_OF_TRIP]-(st:Stoptime)-[:LOCATED_AT]->(s:Stop)
+        RETURN DISTINCT s ORDER BY s.name
+    """)
+    List<Stop> findStopsForRoute(@Param("routeId") String routeId);
 
 }

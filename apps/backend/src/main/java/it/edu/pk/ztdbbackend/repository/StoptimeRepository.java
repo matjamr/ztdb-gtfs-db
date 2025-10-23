@@ -139,6 +139,27 @@ public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
             @Param("departureAfter") String departureAfter,
             @Param("departureBefore") String departureBefore
     );
+    
+    @Query("""
+        WITH $travelDate AS travelDate
+        OPTIONAL MATCH (cd:CalendarDate {date: travelDate})
+        MATCH (s:Stop {name: $stopName})<-[:LOCATED_AT]-(st:Stoptime)-[:PART_OF_TRIP]->(t:Trip)
+        WHERE (travelDate IS NULL OR t.service_id = cd.service_id)
+        RETURN
+          s.name AS stopName,
+          t.id AS tripId,
+          st.arrival_time AS arrivalTime,
+          st.departure_time AS departureTime
+        ORDER BY st.departure_time_int ASC
+        SKIP $skip
+        LIMIT $limit
+    """)
+    List<it.edu.pk.ztdbbackend.api.TripsAtStopProjection> findTripsAtStop(
+            @Param("stopName") String stopName,
+            @Param("travelDate") String travelDate,
+            @Param("skip") int skip,
+            @Param("limit") int limit
+    );
 }
 
 
