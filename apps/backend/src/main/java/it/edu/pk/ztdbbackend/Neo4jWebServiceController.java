@@ -40,7 +40,6 @@ public class Neo4jWebServiceController {
 
     @GetMapping(path = "/agency/{agencyId}", produces = MediaType.APPLICATION_JSON_UTF8_VALUE)
     @ResponseBody
-    //Example id: NJT
     public Agency getAgency(@PathVariable String agencyId, Model model) {
         return agencyRepository.findByAgencyIdWithDepth(agencyId,1);
     }
