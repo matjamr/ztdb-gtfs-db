@@ -113,3 +113,85 @@ RETURN start.name AS from_stop,
        ((st2.arrival_time_int / 100) * 60 + (st2.arrival_time_int % 100)) AS transfer_wait_minutes
   ORDER BY st1.departure_time
   LIMIT 200;
+
+// Discover all routes with their trip counts
+MATCH (r:Route)<-[:TRIP_ROUTE]-(t:Trip)
+WITH r, COUNT(DISTINCT t) AS trip_count
+RETURN
+  r.short_name AS route_number,
+  CASE r.type
+    WHEN 0 THEN 'Tram'
+    WHEN 1 THEN 'Subway'
+    WHEN 2 THEN 'Rail'
+    WHEN 3 THEN 'Bus'
+    WHEN 4 THEN 'Ferry'
+    ELSE 'Other'
+    END AS vehicle_type,
+  trip_count AS total_trips
+  ORDER BY trip_count DESC
+  LIMIT 100;
+
+// Find the busiest stops (most trips per day)
+MATCH (s:Stop)<-[:STOPTIME_STOP]-(st:Stoptime)-[:STOPTIME_TRIP]->(t:Trip)
+WITH s, COUNT(DISTINCT t) AS trips_per_day
+  WHERE trips_per_day > 50
+RETURN
+  s.name AS stop_name,
+  s.lat AS latitude,
+  s.lon AS longitude,
+  trips_per_day
+  ORDER BY trips_per_day DESC
+  LIMIT 20;
+
+// 🕐 Show frequency pattern for a stop
+MATCH (s:Stop {name: 'PKP Rakowiec'})<-[:STOPTIME_STOP]-(st:Stoptime)
+WITH
+  toInteger(substring(st.departure_time, 0, 2)) AS hour,
+  COUNT(*) AS departures
+  WHERE hour >= 6 AND hour <= 23
+RETURN
+  toString(hour) + ':00 - ' + toString(hour) + ':59' AS time_period,
+  departures AS trips_per_hour,
+  CASE
+    WHEN departures >= 600 THEN '🔥🔥🔥 Very frequent'
+    WHEN departures >= 400 THEN '🔥🔥 Frequent'
+    WHEN departures >= 100 THEN '🔥 Regular'
+    ELSE '⏰ Limited'
+    END AS frequency
+  ORDER BY hour;
+
+// 🗺️ Find transfer hubs (stops with many nearby connections)
+MATCH (s:Stop)-[nearby:NEARBY_STOPS]->(other:Stop)
+WITH s, COUNT(other) AS nearby_stops, AVG(nearby.distance) AS avg_distance
+  WHERE nearby_stops > 5
+RETURN
+  s.name AS hub_name,
+  nearby_stops AS connected_stops,
+  toInteger(avg_distance) AS avg_distance_meters,
+  CASE
+    WHEN nearby_stops >= 20 THEN '⭐⭐⭐ Major hub'
+    WHEN nearby_stops >= 10 THEN '⭐⭐ Important hub'
+    ELSE '⭐ Transfer point'
+    END AS importance
+  ORDER BY nearby_stops DESC
+  LIMIT 100;
+
+// 🔍 Find longest single-trip journeys (distinct by route)
+MATCH (t:Trip)<-[:STOPTIME_TRIP]-(st:Stoptime)
+WITH t,
+     COUNT(st) AS total_stops,
+     MIN(st.departure_time_int) AS first_time,
+     MAX(st.arrival_time_int) AS last_time
+  WHERE total_stops > 20
+WITH t, total_stops,
+     (toInteger(last_time - first_time) / 100) * 60 + toInteger(last_time - first_time) % 100 AS duration_minutes
+MATCH (t)-[:TRIP_ROUTE]->(r:Route)
+WITH r.short_name AS route,
+     MAX(total_stops) AS max_stops,
+     MAX(duration_minutes) AS max_duration
+RETURN
+  route,
+  max_stops AS number_of_stops,
+  max_duration AS duration_minutes
+  ORDER BY max_stops DESC
+  LIMIT 10;
