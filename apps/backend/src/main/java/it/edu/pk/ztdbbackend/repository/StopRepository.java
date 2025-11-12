@@ -41,4 +41,24 @@ public interface StopRepository extends Neo4jRepository<Stop, String> {
     """)
     List<Stop> findStopsForRoute(@Param("routeId") String routeId);
 
+    @Query(
+            "//create nearby stops relationships for stops within 200 meters\n" +
+            "CALL apoc.periodic.iterate(\n" +
+            "  'MATCH (s1:Stop) WHERE s1.location_type IS NULL OR s1.location_type <> \"1\" RETURN s1',\n" +
+            "  'MATCH (s2:Stop) " +
+            "   WHERE (s2.location_type IS NULL OR s2.location_type <> \"1\") " +
+            "   AND s1.id <> s2.id " +
+            "   AND point.distance(" +
+            "     point({latitude: s1.lat, longitude: s1.lon}), " +
+            "     point({latitude: s2.lat, longitude: s2.lon})" +
+            "   ) <= 200 " +
+            "   WITH s1, s2, toInteger(point.distance(" +
+            "     point({latitude: s1.lat, longitude: s1.lon}), " +
+            "     point({latitude: s2.lat, longitude: s2.lon})" +
+            "   )) AS distance " +
+            "   CREATE (s1)-[:NEARBY_STOPS {distance: distance}]->(s2)',\n" +
+            "  {batchSize: 100, parallel: false}\n" +
+            ") YIELD batches RETURN batches")
+    Long createNearbyStopsRelationships();
+
 }

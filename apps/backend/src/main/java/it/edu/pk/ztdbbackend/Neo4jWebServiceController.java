@@ -129,8 +129,11 @@ public class Neo4jWebServiceController {
         log.info("Loading stops");
         stopRepository.addStops();
 
-        log.info("Loading stoptimes");
+        log.info("Connecting parent/child stops");
         stopRepository.connectParentChild();
+
+        log.info("Creating nearby stops relationships");
+        stopRepository.createNearbyStopsRelationships();
 
         log.info("Loading stoptimes");
         stoptimeRepository.addStopTimes();

@@ -32,3 +32,8 @@ MATCH (c:Calendar)
 RETURN c.service_id, c.monday, c.tuesday, c.wednesday, c.thursday,
        c.friday, c.saturday, c.sunday, c.start_date, c.end_date
   LIMIT 10;
+
+// List available stops (to find actual stop names in your data) [WORKS]
+MATCH (s:Stop)
+RETURN s.name, s.id
+  ORDER BY s.name;
