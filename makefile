@@ -1,10 +1,7 @@
 URL=https://kolejemalopolskie.com.pl/rozklady_jazdy/ald-gtfs.zip
 FILE=gtfs.zip
 
-bootstrap: download up load clean
-
-download:
-	wget -O $(FILE) $(URL)
+bootstrap: up load clean
 
 up:
 	@echo "Starting Neo4j container..."
@@ -23,19 +20,11 @@ load:
 	@CID=$$(docker-compose ps -q neo4j); \
 	docker cp gtfs $$CID:/import
 
-	@CID=$$(docker-compose ps -q neo4j); \
-# 	docker cp deployment/neo4j/import.sh $$CID:/import/gtfs
-
-	@CID=$$(docker-compose ps -q neo4j); \
-# 	docker exec $$CID chmod 777 /import/gtfs/import.sh
-
-	@CID=$$(docker-compose ps -q neo4j); \
-# 	printf 'bash /import/gtfs/import.sh\n' | docker exec -i $$CID bash -s
 	@echo "Zaladowane dane do bazy."
 
 clean:
 	@echo "Usuwanie niepotrzebnych danych"
-	rm -rf gtfs.zip gtfs
+	rm -rf gtfs
 
 down:
 	docker-compose down

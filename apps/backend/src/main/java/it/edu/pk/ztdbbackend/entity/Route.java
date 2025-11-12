@@ -25,7 +25,7 @@ public class Route {
     @Property(name="type")
     private long type;
 
-    @Relationship(type = "USES", direction = Relationship.Direction.INCOMING)
+    @Relationship(type = "TRIP_ROUTE", direction = Relationship.Direction.INCOMING)
     private Set<Trip> trips;
 
 }

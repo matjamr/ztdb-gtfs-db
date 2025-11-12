@@ -33,13 +33,10 @@ public class Stoptime {
     @Property(name="departure_time")
     private String departureTime;
 
-    @Relationship(type = "LOCATED_AT", direction = Relationship.Direction.OUTGOING)
+    @Relationship(type = "STOPTIME_STOP", direction = Relationship.Direction.OUTGOING)
     private Set<Stop> stops;
 
-    @Relationship(type = "PART_OF_TRIP")
+    @Relationship(type = "STOPTIME_TRIP")
     public Set<Trip> trips;
-
-    @Relationship(type = "PRECEDES")
-    public Set<Stoptime> precedesTime;
 
 }

@@ -13,42 +13,63 @@ public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
 
 
     @Query("//add the stoptimes \n" +
-            "LOAD CSV WITH HEADERS FROM\n" +
-            "'file:///stop_times.txt' AS csv\n" +
-            "MATCH (t:Trip {id: csv.trip_id}), (s:Stop {id: csv.stop_id})\n" +
-            "CREATE (t)<-[:PART_OF_TRIP]-(st:Stoptime {arrival_time: csv.arrival_time, departure_time: csv.departure_time, stop_sequence: toInteger(csv.stop_sequence)})-[:LOCATED_AT]->(s);\n")
-    void addStopTimes();
+            "CALL apoc.periodic.iterate(\n" +
+            "  'LOAD CSV WITH HEADERS FROM \"file:///stop_times.txt\" AS csv RETURN csv',\n" +
+            "  'MATCH (t:Trip {id: csv.trip_id}) MATCH (s:Stop {id: csv.stop_id}) CREATE (st:Stoptime {arrival_time: csv.arrival_time, departure_time: csv.departure_time, stop_sequence: toInteger(csv.stop_sequence)})-[:STOPTIME_TRIP]->(t), (st)-[:STOPTIME_STOP]->(s)',\n" +
+            "  {batchSize: 1000, parallel: false}\n" +
+            ") YIELD batches RETURN batches")
+    Long addStopTimes();
 
     @Query( "//create integers out of the stoptimes (to allow for calculations/ordering)\n" +
-            "MATCH (s:Stoptime)\n" +
-            "SET s.arrival_time_int=toInteger(replace(s.arrival_time,':',''))/100\n" +
-            "SET s.departure_time_int=toInteger(replace(s.departure_time,':',''))/100\n" +
-            "; ")
-    void stopTimeToInt();
+            "CALL apoc.periodic.iterate(\n" +
+            "  'MATCH (s:Stoptime) RETURN s',\n" +
+            "  'SET s.arrival_time_int=toInteger(replace(s.arrival_time, \\\":\\\" , \\\"\\\"))/100, s.departure_time_int=toInteger(replace(s.departure_time, \\\":\\\" , \\\"\\\"))/100',\n" +
+            "  {batchSize: 1000, parallel: false}\n" +
+            ") YIELD batches RETURN batches")
+    Long stopTimeToInt();
 
     @Query(
             "//connect the stoptime sequences\n" +
-            "MATCH (s1:Stoptime)-[:PART_OF_TRIP]->(t:Trip),\n" +
-            "      (s2:Stoptime)-[:PART_OF_TRIP]->(t)\n" +
-            "WHERE s2.stop_sequence=s1.stop_sequence + 1 \n" +
-            "CREATE (s1)-[:PRECEDES]->(s2);")
-    void connectSequences();
+            "CALL apoc.periodic.iterate(\n" +
+            "  'MATCH (s1:Stoptime)-[:STOPTIME_TRIP]->(t:Trip), (s2:Stoptime)-[:STOPTIME_TRIP]->(t) WHERE s2.stop_sequence=s1.stop_sequence + 1 RETURN s1, s2',\n" +
+            "  'CREATE (s1)-[:PRECEDES]->(s2)',\n" +
+            "  {batchSize: 1000, parallel: false}\n" +
+            ") YIELD batches RETURN batches")
+    Long connectSequences();
 
 
     @Query(
             value="""
-                MATCH
-                  (cd:CalendarDate)
-                WHERE
-                  cd.date = $travelDate
-                WITH
-                  cd
+                WITH $travelDate AS travelDate,
+                     date(
+                       toInteger(substring(travelDate, 0, 4)),
+                       toInteger(substring(travelDate, 4, 2)),
+                       toInteger(substring(travelDate, 6, 2))
+                     ) AS targetDate,
+                     (duration.between(date('1970-01-05'), date(
+                       toInteger(substring(travelDate, 0, 4)),
+                       toInteger(substring(travelDate, 4, 2)),
+                       toInteger(substring(travelDate, 6, 2))
+                     )).days % 7) AS dayOfWeek
 
                 MATCH
-                  (orig:Stop {name: $origStation})<-[:LOCATED_AT]-(st_orig:Stoptime)-[:PART_OF_TRIP]->(trip:Trip),
-                  (st_orig)-[:PRECEDES*1..50]->(st_dest:Stoptime)-[:LOCATED_AT]->(dest:Stop {name: $destStation})
+                  (st_orig:Stoptime)-[:STOPTIME_STOP]->(orig:Stop {name: $origStation}),
+                  (st_orig)-[:STOPTIME_TRIP]->(trip:Trip),
+                  (st_orig)-[:PRECEDES*1..50]->(st_dest:Stoptime)-[:STOPTIME_STOP]->(dest:Stop {name: $destStation})
+                OPTIONAL MATCH (trip)-[:TRIP_CALENDAR]->(c:Calendar)
                 WHERE
-                  trip.service_id = cd.service_id
+                  (c IS NOT NULL 
+                   AND travelDate >= c.start_date 
+                   AND travelDate <= c.end_date
+                   AND CASE dayOfWeek
+                     WHEN 0 THEN c.monday
+                     WHEN 1 THEN c.tuesday
+                     WHEN 2 THEN c.wednesday
+                     WHEN 3 THEN c.thursday
+                     WHEN 4 THEN c.friday
+                     WHEN 5 THEN c.saturday
+                     WHEN 6 THEN c.sunday
+                   END = true)
                   AND st_orig.departure_time > $origArrivalTimeLow
                   AND st_orig.departure_time < $origArrivalTimeHigh
                   AND st_dest.arrival_time_int > st_orig.departure_time_int
@@ -85,15 +106,16 @@ public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
              $departureBefore AS departure_before
         
         // Stops from A
-        MATCH (a:Stop {name: stopA})<-[:LOCATED_AT]-(st_a:Stoptime)-[:PART_OF_TRIP]->(trip_a:Trip)
-        MATCH (st_a)-[:PRECEDES*0..30]->(st_mid_a:Stoptime)-[:LOCATED_AT]->(mid:Stop)
+        MATCH (st_a:Stoptime)-[:STOPTIME_STOP]->(a:Stop {name: stopA})
+        MATCH (st_a)-[:STOPTIME_TRIP]->(trip_a:Trip)
+        MATCH (st_a)-[:PRECEDES*0..30]->(st_mid_a:Stoptime)-[:STOPTIME_STOP]->(mid:Stop)
         WITH stopA, stopB, departure_after, departure_before, collect(DISTINCT mid.name) AS stops_from_A
         
         // Stops from B
-        MATCH (b:Stop {name: stopB})<-[:LOCATED_AT]-(st_b:Stoptime)
-        MATCH (st_mid_b:Stoptime)-[:PART_OF_TRIP]->(trip_b:Trip)
+        MATCH (st_b:Stoptime)-[:STOPTIME_STOP]->(b:Stop {name: stopB})
+        MATCH (st_mid_b:Stoptime)-[:STOPTIME_TRIP]->(trip_b:Trip)
         MATCH (st_mid_b)-[:PRECEDES*0..30]->(st_b)
-        MATCH (st_mid_b)-[:LOCATED_AT]->(mid2:Stop)
+        MATCH (st_mid_b)-[:STOPTIME_STOP]->(mid2:Stop)
         WITH stopA, stopB, departure_after, departure_before, stops_from_A, collect(DISTINCT mid2.name) AS stops_to_B
         
         // Common Stops
@@ -103,19 +125,18 @@ public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
         // Find connections through each common stop
         UNWIND common_stops AS transfer_stop
         
-        MATCH (cd:CalendarDate)
-        MATCH (orig:Stop {name: stopA})<-[:LOCATED_AT]-(st_orig:Stoptime)-[:PART_OF_TRIP]->(trip:Trip),
-              (st_orig)-[:PRECEDES*1..50]->(st_dest:Stoptime)-[:LOCATED_AT]->(dest:Stop {name: transfer_stop})
-          WHERE trip.service_id = cd.service_id
-          AND st_orig.departure_time > departure_after
+        MATCH (st_orig:Stoptime)-[:STOPTIME_STOP]->(orig:Stop {name: stopA}),
+              (st_orig)-[:STOPTIME_TRIP]->(trip:Trip),
+              (st_orig)-[:PRECEDES*1..50]->(st_dest:Stoptime)-[:STOPTIME_STOP]->(dest:Stop {name: transfer_stop})
+          WHERE st_orig.departure_time > departure_after
           AND st_orig.departure_time < departure_before
           AND st_dest.arrival_time_int > st_orig.departure_time_int
         
         // Now find second leg from transfer to destination
-        MATCH (transfer:Stop {name: transfer_stop})<-[:LOCATED_AT]-(st_transfer:Stoptime)-[:PART_OF_TRIP]->(trip2:Trip),
-              (st_transfer)-[:PRECEDES*1..50]->(st_final:Stoptime)-[:LOCATED_AT]->(final:Stop {name: stopB})
-          WHERE trip2.service_id = cd.service_id
-          AND st_transfer.departure_time_int >= st_dest.arrival_time_int
+        MATCH (st_transfer:Stoptime)-[:STOPTIME_STOP]->(transfer:Stop {name: transfer_stop}),
+              (st_transfer)-[:STOPTIME_TRIP]->(trip2:Trip),
+              (st_transfer)-[:PRECEDES*1..50]->(st_final:Stoptime)-[:STOPTIME_STOP]->(final:Stop {name: stopB})
+          WHERE st_transfer.departure_time_int >= st_dest.arrival_time_int
           AND st_final.arrival_time_int > st_transfer.departure_time_int
         
         RETURN
@@ -141,10 +162,31 @@ public interface StoptimeRepository extends Neo4jRepository<Stoptime, Long> {
     );
     
     @Query("""
-        WITH $travelDate AS travelDate
-        OPTIONAL MATCH (cd:CalendarDate {date: travelDate})
-        MATCH (s:Stop {name: $stopName})<-[:LOCATED_AT]-(st:Stoptime)-[:PART_OF_TRIP]->(t:Trip)
-        WHERE (travelDate IS NULL OR t.service_id = cd.service_id)
+        WITH $travelDate AS travelDate,
+             CASE 
+               WHEN travelDate IS NULL THEN null
+               ELSE (duration.between(date('1970-01-05'), date(
+                 toInteger(substring(travelDate, 0, 4)),
+                 toInteger(substring(travelDate, 4, 2)),
+                 toInteger(substring(travelDate, 6, 2))
+               )).days % 7)
+             END AS dayOfWeek
+        MATCH (st:Stoptime)-[:STOPTIME_STOP]->(s:Stop {name: $stopName})
+        MATCH (st)-[:STOPTIME_TRIP]->(t:Trip)
+        OPTIONAL MATCH (t)-[:TRIP_CALENDAR]->(c:Calendar)
+        WHERE (travelDate IS NULL OR 
+               (c IS NOT NULL 
+                AND travelDate >= c.start_date 
+                AND travelDate <= c.end_date
+                AND CASE dayOfWeek
+                  WHEN 0 THEN c.monday
+                  WHEN 1 THEN c.tuesday
+                  WHEN 2 THEN c.wednesday
+                  WHEN 3 THEN c.thursday
+                  WHEN 4 THEN c.friday
+                  WHEN 5 THEN c.saturday
+                  WHEN 6 THEN c.sunday
+                END = true))
         RETURN
           s.name AS stopName,
           t.id AS tripId,

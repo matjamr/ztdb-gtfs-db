@@ -22,13 +22,16 @@ public class Trip {
     @Property(name="service_id")
     private String serviceId;
 
-    @Relationship(type = "USES")
+    @Relationship(type = "TRIP_ROUTE")
     public Set<Route> routes;
 
-    @Relationship(type = "PART_OF_TRIP", direction = Relationship.Direction.INCOMING)
+    @Relationship(type = "STOPTIME_TRIP", direction = Relationship.Direction.INCOMING)
     public Set<Stoptime> stoptimes;
 
-    @Relationship(type = "RUNS_DURING")
+    @Relationship(type = "TRIP_SERVICE")
     public Set<CalendarDate> calendarDates;
+
+    @Relationship(type = "TRIP_CALENDAR")
+    public Set<Calendar> calendars;
 
 }

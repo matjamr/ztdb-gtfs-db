@@ -32,6 +32,9 @@ public class Neo4jWebServiceController {
     CalendarDateRepository calendarDateRepository;
 
     @Autowired
+    CalendarRepository calendarRepository;
+
+    @Autowired
     TripRepository tripRepository;
 
 
@@ -97,12 +100,16 @@ public class Neo4jWebServiceController {
 
         long startTime = System.currentTimeMillis();
         log.info("Loading data from fetched zip file");
-        agencyRepository.deleteAll();
-        routeRepository.deleteAll();
-        stopRepository.deleteAll();
-        stoptimeRepository.deleteAll();
-        tripRepository.deleteAll();
-        calendarDateRepository.deleteAll();
+        log.info("Deleting all existing data in batches");
+        agencyRepository.deleteAllData();
+
+        log.info("Creating indexes");
+        agencyRepository.createIndex();
+        routeRepository.createIndex();
+        stopRepository.createIndex();
+        tripRepository.createIndexId();
+        tripRepository.createIndexServiceId();
+        calendarRepository.createIndex();
 
         log.info("Loading agency");
         agencyRepository.loadNodes();
@@ -115,6 +122,9 @@ public class Neo4jWebServiceController {
 
         log.info("Loading calendar dates");
         calendarDateRepository.loadNodes();
+
+        log.info("Loading calendar");
+        calendarRepository.loadNodes();
 
         log.info("Loading stops");
         stopRepository.addStops();

@@ -25,7 +25,7 @@ public class CalendarDate {
     @Property(name="exception_type")
     private String exceptionType;
 
-    @Relationship(type = "RUNS_DURING", direction = Relationship.Direction.INCOMING)
+    @Relationship(type = "TRIP_SERVICE", direction = Relationship.Direction.INCOMING)
     public Set<Trip> trips;
 
 }

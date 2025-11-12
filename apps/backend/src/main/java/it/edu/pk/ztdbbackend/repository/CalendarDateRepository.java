@@ -8,10 +8,11 @@ import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 @RepositoryRestResource(collectionResourceRel = "calendarDate", path = "calendarDate")
 public interface CalendarDateRepository extends Neo4jRepository<CalendarDate, Long> {
     @Query(
-            "LOAD CSV WITH HEADERS FROM\n" +
-            "'file:///calendar_dates.txt' AS csv\n" +
-            "MATCH (t:Trip {service_id: csv.service_id})\n" +
-            "CREATE (t)-[:RUNS_DURING]->(cd:CalendarDate{service_id: csv.service_id, date: csv.date, exception_type: csv.exception_type })"
+            "CALL apoc.periodic.iterate(\n" +
+            "  'LOAD CSV WITH HEADERS FROM \"file:///calendar_dates.txt\" AS csv RETURN csv',\n" +
+            "  'MATCH (t:Trip {service_id: csv.service_id}) CREATE (t)-[:TRIP_SERVICE]->(cd:CalendarDate{service_id: csv.service_id, date: csv.date, exception_type: csv.exception_type })',\n" +
+            "  {batchSize: 1000, parallel: false}\n" +
+            ") YIELD batches RETURN batches"
     )
-    void loadNodes ();
+    Long loadNodes ();
 }
