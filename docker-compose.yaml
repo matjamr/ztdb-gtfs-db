@@ -83,6 +83,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
+      - ./deployment/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./deployment/postgres/load_gtfs.sql:/docker-entrypoint-initdb.d/load_gtfs.sql:ro
     networks:
       - app-network
     healthcheck:
