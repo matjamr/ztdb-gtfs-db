@@ -1,207 +1,203 @@
--- ============================================
--- PostgreSQL Queries Converted from Neo4j Cypher
--- READY TO RUN - Just copy and paste into psql
--- ============================================
-
--- ============================================
+-- ============================================================
 -- QUERY 1: Find all routes serving a specific stop on a specific date
--- Neo4j equivalent: Find routes at PKP Rakowiec on 2025-11-09
--- ============================================
+-- ============================================================
 
--- Basic version (change the stop name and date as needed)
-WITH date_params AS (
+WITH params AS (
     SELECT
         '2025-11-09'::DATE AS travel_date,
-            TO_CHAR('2025-11-09'::DATE, 'YYYYMMDD') AS travel_date_yyyymmdd,
-        EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week
+        '20251109' AS travel_date_yyyymmdd,
+        EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week  -- 0=Sunday, 6=Saturday
 )
 SELECT DISTINCT
-    s.name AS stop_name,
-    s.id AS stop_id,
-    r.short_name AS route_number,
-    r.long_name AS route_name,
-    dp.day_of_week,
-    COUNT(DISTINCT t.id) AS number_of_trips
-FROM stops s
-         JOIN stoptimes st ON s.id = st.stop_id
-         JOIN trips t ON st.trip_id = t.id
-         JOIN routes r ON t.route_id = r.id
-         JOIN calendars c ON t.calendar_id = c.id
-         CROSS JOIN date_params dp
-WHERE s.name LIKE '%PKP Rakowiec%'
-  AND dp.travel_date_yyyymmdd >= c.start_date
-  AND dp.travel_date_yyyymmdd <= c.end_date
-GROUP BY s.name, s.id, r.short_name, r.long_name, dp.day_of_week
-ORDER BY r.short_name
-    LIMIT 500;
+    s.stop_name,
+    s.stop_id,
+    r.route_short_name AS route_number,
+    r.route_long_name AS route_name,
+    p.day_of_week,
+    COUNT(DISTINCT t.trip_id) AS number_of_trips
+FROM params p
+         CROSS JOIN stops s
+         JOIN stop_times st ON s.stop_id = st.stop_id
+         JOIN trips t ON st.trip_id = t.trip_id
+         JOIN routes r ON t.route_id = r.route_id
+         JOIN calendar c ON t.service_id = c.service_id
+WHERE s.stop_name ILIKE '%PKP Rakowiec%'
+  AND p.travel_date_yyyymmdd >= c.start_date::TEXT
+  AND p.travel_date_yyyymmdd <= c.end_date::TEXT
+  -- Check if service operates on this day of week
+  AND (
+    (p.day_of_week = 0 AND c.sunday = 1) OR
+    (p.day_of_week = 1 AND c.monday = 1) OR
+    (p.day_of_week = 2 AND c.tuesday = 1) OR
+    (p.day_of_week = 3 AND c.wednesday = 1) OR
+    (p.day_of_week = 4 AND c.thursday = 1) OR
+    (p.day_of_week = 5 AND c.friday = 1) OR
+    (p.day_of_week = 6 AND c.saturday = 1)
+    )
+GROUP BY s.stop_name, s.stop_id, r.route_short_name, r.route_long_name, p.day_of_week
+ORDER BY r.route_short_name
+LIMIT 500;
 
 
--- ============================================
+-- ============================================================
 -- QUERY 2: Find routes with departure times for a specific stop on a given date
--- Neo4j equivalent: Get all departures from PKP Rakowiec on 2025-11-09
--- ============================================
+-- ============================================================
 
-WITH date_params AS (
+WITH params AS (
     SELECT
         '2025-11-09'::DATE AS travel_date,
-            TO_CHAR('2025-11-09'::DATE, 'YYYYMMDD') AS travel_date_yyyymmdd,
+        '20251109' AS travel_date_yyyymmdd,
         EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week
 )
 SELECT
-    s.name AS stop_name,
-    r.short_name AS route_number,
+    s.stop_name,
+    r.route_short_name AS route_number,
     st.departure_time,
     st.arrival_time,
-    t.id AS trip_id
-FROM stops s
-         JOIN stoptimes st ON s.id = st.stop_id
-         JOIN trips t ON st.trip_id = t.id
-         JOIN routes r ON t.route_id = r.id
-         JOIN calendars c ON t.calendar_id = c.id
-         CROSS JOIN date_params dp
-WHERE s.name LIKE '%PKP Rakowiec%'
-  AND dp.travel_date_yyyymmdd >= c.start_date
-  AND dp.travel_date_yyyymmdd <= c.end_date
-ORDER BY st.departure_time_int
-    LIMIT 500;
+    t.trip_id
+FROM params p
+         CROSS JOIN stops s
+         JOIN stop_times st ON s.stop_id = st.stop_id
+         JOIN trips t ON st.trip_id = t.trip_id
+         JOIN routes r ON t.route_id = r.route_id
+         JOIN calendar c ON t.service_id = c.service_id
+WHERE s.stop_name ILIKE '%PKP Rakowiec%'
+  AND p.travel_date_yyyymmdd >= c.start_date::TEXT
+  AND p.travel_date_yyyymmdd <= c.end_date::TEXT
+  AND (
+    (p.day_of_week = 0 AND c.sunday = 1) OR
+    (p.day_of_week = 1 AND c.monday = 1) OR
+    (p.day_of_week = 2 AND c.tuesday = 1) OR
+    (p.day_of_week = 3 AND c.wednesday = 1) OR
+    (p.day_of_week = 4 AND c.thursday = 1) OR
+    (p.day_of_week = 5 AND c.friday = 1) OR
+    (p.day_of_week = 6 AND c.saturday = 1)
+    )
+ORDER BY st.departure_time
+LIMIT 500;
 
 
--- ============================================
+-- ============================================================
 -- QUERY 3: Direct trip from A to B (no transfers - same vehicle)
--- Neo4j equivalent: [:PRECEDES*1..30] path traversal
--- ============================================
+-- ============================================================
 
--- METHOD 1: Simple JOIN approach (faster, recommended)
+-- Helper function to convert time string to minutes
+CREATE OR REPLACE FUNCTION time_to_minutes(time_str TEXT)
+    RETURNS INTEGER AS $$
+DECLARE
+    parts TEXT[];
+    hours INTEGER;
+    minutes INTEGER;
+BEGIN
+    parts := string_to_array(time_str, ':');
+    hours := parts[1]::INTEGER;
+    minutes := parts[2]::INTEGER;
+    RETURN hours * 60 + minutes;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Main query for direct connections
 SELECT
-    start.name AS from_stop,
-    end_stop.name AS to_stop,
-    r.short_name AS route_number,
-    r.long_name AS route_name,
-    t.id AS trip_id,
+    start_stop.stop_name AS from_stop,
+    end_stop.stop_name AS to_stop,
+    r.route_short_name AS route_number,
+    r.route_long_name AS route_name,
+    t.trip_id,
     st1.departure_time,
     st2.arrival_time,
     (st2.stop_sequence - st1.stop_sequence) AS stops_between,
-    (st2.arrival_time_int - st1.departure_time_int) AS travel_time_minutes
-FROM stops start
-         JOIN stoptimes st1 ON start.id = st1.stop_id
-         JOIN trips t ON st1.trip_id = t.id
-         JOIN routes r ON t.route_id = r.id
-         JOIN stoptimes st2 ON t.id = st2.trip_id
-         JOIN stops end_stop ON st2.stop_id = end_stop.id
-WHERE start.name LIKE '%PKP Rakowiec%'
-  AND end_stop.name LIKE '%Wawelska%'
+    (time_to_minutes(st2.arrival_time) - time_to_minutes(st1.departure_time)) AS travel_time_minutes
+FROM stops start_stop
+         JOIN stop_times st1 ON start_stop.stop_id = st1.stop_id
+         JOIN trips t ON st1.trip_id = t.trip_id
+         JOIN stop_times st2 ON t.trip_id = st2.trip_id
+         JOIN stops end_stop ON st2.stop_id = end_stop.stop_id
+         JOIN routes r ON t.route_id = r.route_id
+WHERE start_stop.stop_name ILIKE '%PKP Rakowiec%'
+  AND end_stop.stop_name ILIKE '%Wawelska%'
   AND st1.departure_time >= '08:00:00'
   AND st1.departure_time <= '18:00:00'
   AND st1.stop_sequence < st2.stop_sequence
   AND st2.stop_sequence - st1.stop_sequence <= 30
-ORDER BY st1.departure_time_int
-    LIMIT 100;
+ORDER BY st1.departure_time
+LIMIT 100;
 
 
--- METHOD 2: Using Recursive CTE (more Neo4j-like, follows PRECEDES relationships)
-WITH RECURSIVE stop_path AS (
-    -- Base case: starting stoptimes at PKP Rakowiec
-    SELECT
-        st1.id AS start_stoptime_id,
-        st1.stop_id AS start_stop_id,
-        st1.trip_id,
-        st1.stop_sequence AS start_sequence,
-        st1.departure_time,
-        st1.departure_time_int,
-        st1.id AS current_stoptime_id,
-        st1.stop_id AS current_stop_id,
-        st1.stop_sequence AS current_sequence,
-        st1.arrival_time AS current_arrival,
-        st1.arrival_time_int AS current_arrival_int,
-        0 AS depth
-    FROM stoptimes st1
-             JOIN stops start ON st1.stop_id = start.id
-    WHERE start.name LIKE '%PKP Rakowiec%'
-      AND st1.departure_time >= '08:00:00'
-      AND st1.departure_time <= '18:00:00'
+-- ============================================================
+-- QUERY 4: One transfer route from A to B
+-- ============================================================
 
-    UNION ALL
+-- STEP 1: First check what columns your nearby_stops table has
+-- Run this to see the structure:
+-- \d nearby_stops
 
-    -- Recursive case: follow PRECEDES to next stops
-    SELECT
-        sp.start_stoptime_id,
-        sp.start_stop_id,
-        sp.trip_id,
-        sp.start_sequence,
-        sp.departure_time,
-        sp.departure_time_int,
-        st.id,
-        st.stop_id,
-        st.stop_sequence,
-        st.arrival_time,
-        st.arrival_time_int,
-        sp.depth + 1
-    FROM stop_path sp
-             JOIN stoptimes st ON sp.trip_id = st.trip_id
-        AND st.stop_sequence = sp.current_sequence + 1
-    WHERE sp.depth < 30
-)
+-- STEP 2: Create nearby_stops table with correct column names
+DROP TABLE IF EXISTS nearby_stops;
+
+CREATE TABLE nearby_stops AS
 SELECT
-    start.name AS from_stop,
-    end_stop.name AS to_stop,
-    r.short_name AS route_number,
-    r.long_name AS route_name,
-    t.id AS trip_id,
-    sp.departure_time,
-    sp.current_arrival AS arrival_time,
-    (sp.current_sequence - sp.start_sequence) AS stops_between,
-    (sp.current_arrival_int - sp.departure_time_int) AS travel_time_minutes
-FROM stop_path sp
-         JOIN stops start ON sp.start_stop_id = start.id
-         JOIN stops end_stop ON sp.current_stop_id = end_stop.id
-         JOIN trips t ON sp.trip_id = t.id
-         JOIN routes r ON t.route_id = r.id
-WHERE end_stop.name LIKE '%Wawelska%'
-  AND sp.current_sequence > sp.start_sequence
-ORDER BY sp.departure_time_int
-    LIMIT 100;
+    s1.stop_id AS stop_id_from,
+    s2.stop_id AS stop_id_to,
+    s1.stop_name AS stop_name_from,
+    s2.stop_name AS stop_name_to,
+    ROUND(
+            111319.9 * SQRT(
+                    POW(s1.stop_lat - s2.stop_lat, 2) +
+                    POW((s1.stop_lon - s2.stop_lon) * COS(RADIANS((s1.stop_lat + s2.stop_lat) / 2)), 2)
+                       )
+    )::INTEGER AS distance_meters
+FROM stops s1
+         CROSS JOIN stops s2
+WHERE s1.stop_id < s2.stop_id  -- Avoid duplicates and self-references
+  AND ROUND(
+              111319.9 * SQRT(
+                      POW(s1.stop_lat - s2.stop_lat, 2) +
+                      POW((s1.stop_lon - s2.stop_lon) * COS(RADIANS((s1.stop_lat + s2.stop_lat) / 2)), 2)
+                         )
+      ) <= 500;  -- Within 500 meters
 
+-- Create indexes for performance
+CREATE INDEX idx_nearby_stops_from ON nearby_stops(stop_id_from);
+CREATE INDEX idx_nearby_stops_to ON nearby_stops(stop_id_to);
+CREATE INDEX idx_nearby_stops_distance ON nearby_stops(distance_meters);
 
--- ============================================
--- QUERY 4: Trip with 1 transfer
--- Neo4j equivalent: Two [:PRECEDES*] paths connected by [:NEARBY_STOPS]
--- ============================================
-
--- METHOD 1: Simple JOIN approach (faster, recommended)
+-- STEP 3: Main query for one-transfer connections (CORRECTED VERSION)
 SELECT
-    start.name AS from_stop,
-    transfer1.name AS arrive_at_stop,
-    transfer2.name AS depart_from_stop,
-    ns.distance AS walking_distance_meters,
-    end_stop.name AS to_stop,
-    r1.short_name AS first_route,
-    r2.short_name AS second_route,
+    start_stop.stop_name AS from_stop,
+    transfer_stop1.stop_name AS arrive_at_stop,
+    transfer_stop2.stop_name AS depart_from_stop,
+    COALESCE(ns1.distance_meters, ns2.distance_meters) AS walking_distance_meters,
+    end_stop.stop_name AS to_stop,
+    r1.route_short_name AS first_route,
+    r2.route_short_name AS second_route,
     st1.departure_time AS depart_from_start,
     st2.arrival_time AS arrive_at_transfer,
     st3.departure_time AS depart_from_transfer,
     st4.arrival_time AS arrive_at_destination,
-    (
-        ((st3.departure_time_int / 100) * 60 + (st3.departure_time_int % 100)) -
-        ((st2.arrival_time_int / 100) * 60 + (st2.arrival_time_int % 100))
-        ) AS transfer_wait_minutes
-FROM stops start
--- First leg: start -> transfer point 1
-         JOIN stoptimes st1 ON start.id = st1.stop_id
-         JOIN trips t1 ON st1.trip_id = t1.id
-         JOIN routes r1 ON t1.route_id = r1.id
-         JOIN stoptimes st2 ON t1.id = st2.trip_id
-         JOIN stops transfer1 ON st2.stop_id = transfer1.id
--- Transfer: walk from transfer1 to transfer2
-         JOIN nearby_stops ns ON transfer1.id = ns.from_stop_id
-         JOIN stops transfer2 ON ns.to_stop_id = transfer2.id
--- Second leg: transfer point 2 -> end
-         JOIN stoptimes st3 ON transfer2.id = st3.stop_id
-         JOIN trips t2 ON st3.trip_id = t2.id
-         JOIN routes r2 ON t2.route_id = r2.id
-         JOIN stoptimes st4 ON t2.id = st4.trip_id
-         JOIN stops end_stop ON st4.stop_id = end_stop.id
-WHERE start.name LIKE '%PKP Rakowiec%'
-  AND end_stop.name LIKE '%PKP Włochy%'
+    (time_to_minutes(st3.departure_time) - time_to_minutes(st2.arrival_time)) AS transfer_wait_minutes,
+    (time_to_minutes(st4.arrival_time) - time_to_minutes(st1.departure_time)) AS total_travel_time_minutes
+FROM stops start_stop
+-- First leg
+         JOIN stop_times st1 ON start_stop.stop_id = st1.stop_id
+         JOIN trips t1 ON st1.trip_id = t1.trip_id
+         JOIN stop_times st2 ON t1.trip_id = st2.trip_id
+         JOIN stops transfer_stop1 ON st2.stop_id = transfer_stop1.stop_id
+-- Transfer (nearby stops) - handle both directions
+         LEFT JOIN nearby_stops ns1 ON ns1.stop_id_from = transfer_stop1.stop_id
+         LEFT JOIN nearby_stops ns2 ON ns2.stop_id_to = transfer_stop1.stop_id
+         JOIN stops transfer_stop2 ON (
+    transfer_stop2.stop_id = COALESCE(ns1.stop_id_to, ns2.stop_id_from)
+    )
+-- Second leg
+         JOIN stop_times st3 ON transfer_stop2.stop_id = st3.stop_id
+         JOIN trips t2 ON st3.trip_id = t2.trip_id
+         JOIN stop_times st4 ON t2.trip_id = st4.trip_id
+         JOIN stops end_stop ON st4.stop_id = end_stop.stop_id
+-- Routes
+         JOIN routes r1 ON t1.route_id = r1.route_id
+         JOIN routes r2 ON t2.route_id = r2.route_id
+WHERE start_stop.stop_name ILIKE '%PKP Rakowiec%'
+  AND end_stop.stop_name ILIKE '%PKP Włochy%'
   AND st1.departure_time >= '08:00:00'
   AND st1.departure_time <= '10:00:00'
   -- First leg constraints
@@ -210,134 +206,105 @@ WHERE start.name LIKE '%PKP Rakowiec%'
   -- Second leg constraints
   AND st3.stop_sequence < st4.stop_sequence
   AND st4.stop_sequence - st3.stop_sequence <= 20
-  -- Transfer constraints
-  AND t1.id <> t2.id
-  AND ns.distance <= 200
+  -- Different trips
+  AND t1.trip_id <> t2.trip_id
+  -- Transfer exists
+  AND (ns1.stop_id_from IS NOT NULL OR ns2.stop_id_to IS NOT NULL)
+  -- Transfer time constraints
   AND st2.arrival_time < st3.departure_time
-  AND (
-          ((st3.departure_time_int / 100) * 60 + (st3.departure_time_int % 100)) -
-          ((st2.arrival_time_int / 100) * 60 + (st2.arrival_time_int % 100))
-          ) <= 15
-ORDER BY st1.departure_time_int
-    LIMIT 200;
+  AND COALESCE(ns1.distance_meters, ns2.distance_meters) <= 200
+  AND (time_to_minutes(st3.departure_time) - time_to_minutes(st2.arrival_time)) <= 15
+ORDER BY st1.departure_time, total_travel_time_minutes
+LIMIT 200;
 
 
--- METHOD 2: Using Recursive CTEs (more Neo4j-like)
-WITH RECURSIVE
--- First leg path
-first_leg AS (
-    SELECT
-        st1.id AS start_stoptime_id,
-        st1.stop_id AS start_stop_id,
-        st1.trip_id,
-        st1.stop_sequence AS start_sequence,
-        st1.departure_time,
-        st1.departure_time_int,
-        st1.id AS current_stoptime_id,
-        st1.stop_id AS current_stop_id,
-        st1.stop_sequence AS current_sequence,
-        st1.arrival_time AS current_arrival,
-        st1.arrival_time_int AS current_arrival_int,
-        0 AS depth
-    FROM stoptimes st1
-             JOIN stops start ON st1.stop_id = start.id
-    WHERE start.name LIKE '%PKP Rakowiec%'
-      AND st1.departure_time >= '08:00:00'
-      AND st1.departure_time <= '10:00:00'
+-- ============================================================
+-- ALTERNATIVE: Simpler one-transfer query (same stop transfer only)
+-- This is faster and doesn't require nearby_stops table
+-- ============================================================
 
-    UNION ALL
-
-    SELECT
-        fl.start_stoptime_id,
-        fl.start_stop_id,
-        fl.trip_id,
-        fl.start_sequence,
-        fl.departure_time,
-        fl.departure_time_int,
-        st.id,
-        st.stop_id,
-        st.stop_sequence,
-        st.arrival_time,
-        st.arrival_time_int,
-        fl.depth + 1
-    FROM first_leg fl
-             JOIN stoptimes st ON fl.trip_id = st.trip_id
-        AND st.stop_sequence = fl.current_sequence + 1
-    WHERE fl.depth < 20
-),
--- Second leg path
-second_leg AS (
-    SELECT
-        st3.id AS start_stoptime_id,
-        st3.stop_id AS start_stop_id,
-        st3.trip_id,
-        st3.stop_sequence AS start_sequence,
-        st3.departure_time,
-        st3.departure_time_int,
-        st3.id AS current_stoptime_id,
-        st3.stop_id AS current_stop_id,
-        st3.stop_sequence AS current_sequence,
-        st3.arrival_time AS current_arrival,
-        st3.arrival_time_int AS current_arrival_int,
-        0 AS depth
-    FROM stoptimes st3
-
-    UNION ALL
-
-    SELECT
-        sl.start_stoptime_id,
-        sl.start_stop_id,
-        sl.trip_id,
-        sl.start_sequence,
-        sl.departure_time,
-        sl.departure_time_int,
-        st.id,
-        st.stop_id,
-        st.stop_sequence,
-        st.arrival_time,
-        st.arrival_time_int,
-        sl.depth + 1
-    FROM second_leg sl
-             JOIN stoptimes st ON sl.trip_id = st.trip_id
-        AND st.stop_sequence = sl.current_sequence + 1
-    WHERE sl.depth < 20
-)
 SELECT
-    start.name AS from_stop,
-    transfer1.name AS arrive_at_stop,
-    transfer2.name AS depart_from_stop,
-    ns.distance AS walking_distance_meters,
-    end_stop.name AS to_stop,
-    r1.short_name AS first_route,
-    r2.short_name AS second_route,
-    fl.departure_time AS depart_from_start,
-    fl.current_arrival AS arrive_at_transfer,
-    sl.departure_time AS depart_from_transfer,
-    sl.current_arrival AS arrive_at_destination,
-    (
-        ((sl.departure_time_int / 100) * 60 + (sl.departure_time_int % 100)) -
-        ((fl.current_arrival_int / 100) * 60 + (fl.current_arrival_int % 100))
-        ) AS transfer_wait_minutes
-FROM first_leg fl
-         JOIN stops start ON fl.start_stop_id = start.id
-         JOIN stops transfer1 ON fl.current_stop_id = transfer1.id
-         JOIN nearby_stops ns ON transfer1.id = ns.from_stop_id
-         JOIN stops transfer2 ON ns.to_stop_id = transfer2.id
-         JOIN second_leg sl ON transfer2.id = sl.start_stop_id
-         JOIN stops end_stop ON sl.current_stop_id = end_stop.id
-         JOIN trips t1 ON fl.trip_id = t1.id
-         JOIN routes r1 ON t1.route_id = r1.id
-         JOIN trips t2 ON sl.trip_id = t2.id
-         JOIN routes r2 ON t2.route_id = r2.id
-WHERE end_stop.name LIKE '%PKP Włochy%'
-  AND fl.depth > 0
-  AND sl.depth > 0
-  AND t1.id <> t2.id
-  AND ns.distance <= 200
-  AND fl.current_arrival < sl.departure_time
-  AND (
-          ((sl.departure_time_int / 100) * 60 + (sl.departure_time_int % 100)) -
-          ((fl.current_arrival_int / 100) * 60 + (fl.current_arrival_int % 100))
-          ) <= 15
-ORDER BY fl.departure_time_int
-    LIMIT 200;
+    start_stop.stop_name AS from_stop,
+    transfer_stop.stop_name AS transfer_at_stop,
+    end_stop.stop_name AS to_stop,
+    r1.route_short_name AS first_route,
+    r2.route_short_name AS second_route,
+    st1.departure_time AS depart_from_start,
+    st2.arrival_time AS arrive_at_transfer,
+    st3.departure_time AS depart_from_transfer,
+    st4.arrival_time AS arrive_at_destination,
+    (time_to_minutes(st3.departure_time) - time_to_minutes(st2.arrival_time)) AS transfer_wait_minutes,
+    (time_to_minutes(st4.arrival_time) - time_to_minutes(st1.departure_time)) AS total_travel_time_minutes
+FROM stops start_stop
+-- First leg
+         JOIN stop_times st1 ON start_stop.stop_id = st1.stop_id
+         JOIN trips t1 ON st1.trip_id = t1.trip_id
+         JOIN stop_times st2 ON t1.trip_id = st2.trip_id
+         JOIN stops transfer_stop ON st2.stop_id = transfer_stop.stop_id
+-- Second leg (same transfer stop)
+         JOIN stop_times st3 ON transfer_stop.stop_id = st3.stop_id
+         JOIN trips t2 ON st3.trip_id = t2.trip_id
+         JOIN stop_times st4 ON t2.trip_id = st4.trip_id
+         JOIN stops end_stop ON st4.stop_id = end_stop.stop_id
+-- Routes
+         JOIN routes r1 ON t1.route_id = r1.route_id
+         JOIN routes r2 ON t2.route_id = r2.route_id
+WHERE start_stop.stop_name ILIKE '%PKP Rakowiec%'
+  AND end_stop.stop_name ILIKE '%PKP Włochy%'
+  AND st1.departure_time >= '08:00:00'
+  AND st1.departure_time <= '10:00:00'
+  -- First leg constraints
+  AND st1.stop_sequence < st2.stop_sequence
+  AND st2.stop_sequence - st1.stop_sequence <= 20
+  -- Second leg constraints
+  AND st3.stop_sequence < st4.stop_sequence
+  AND st4.stop_sequence - st3.stop_sequence <= 20
+  -- Different trips
+  AND t1.trip_id <> t2.trip_id
+  -- Transfer time constraints
+  AND st2.arrival_time < st3.departure_time
+  AND (time_to_minutes(st3.departure_time) - time_to_minutes(st2.arrival_time)) BETWEEN 2 AND 15
+ORDER BY st1.departure_time, total_travel_time_minutes
+LIMIT 200;
+
+
+-- ============================================================
+-- UTILITY QUERIES
+-- ============================================================
+
+-- Check nearby stops for a specific location
+SELECT
+    stop_name_from,
+    stop_name_to,
+    distance_meters
+FROM nearby_stops
+WHERE stop_name_from ILIKE '%PKP Rakowiec%'
+   OR stop_name_to ILIKE '%PKP Rakowiec%'
+ORDER BY distance_meters
+LIMIT 20;
+
+-- Count nearby stops
+SELECT COUNT(*) as nearby_stop_pairs
+FROM nearby_stops;
+
+-- Find stops within walking distance of a specific stop
+SELECT
+    s2.stop_name,
+    ROUND(
+            111319.9 * SQRT(
+                    POW(s1.stop_lat - s2.stop_lat, 2) +
+                    POW((s1.stop_lon - s2.stop_lon) * COS(RADIANS((s1.stop_lat + s2.stop_lat) / 2)), 2)
+                       )
+    )::INTEGER AS distance_meters
+FROM stops s1
+         CROSS JOIN stops s2
+WHERE s1.stop_name ILIKE '%PKP Rakowiec%'
+  AND s1.stop_id <> s2.stop_id
+  AND ROUND(
+              111319.9 * SQRT(
+                      POW(s1.stop_lat - s2.stop_lat, 2) +
+                      POW((s1.stop_lon - s2.stop_lon) * COS(RADIANS((s1.stop_lat + s2.stop_lat) / 2)), 2)
+                         )
+      ) <= 300
+ORDER BY distance_meters
+LIMIT 20;
