@@ -1,12 +1,10 @@
 -- ============================================================
 -- QUERY 1: Find all routes serving a specific stop on a specific date
 -- ============================================================
-
 WITH params AS (
     SELECT
         '2025-11-09'::DATE AS travel_date,
-        '20251109' AS travel_date_yyyymmdd,
-        EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week  -- 0=Sunday, 6=Saturday
+        EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week
 )
 SELECT DISTINCT
     s.stop_name,
@@ -21,9 +19,9 @@ FROM params p
          JOIN trips t ON st.trip_id = t.trip_id
          JOIN routes r ON t.route_id = r.route_id
          JOIN calendar c ON t.service_id = c.service_id
-WHERE s.stop_name ILIKE '%PKP Rakowiec%'
-  AND p.travel_date_yyyymmdd >= c.start_date::TEXT
-  AND p.travel_date_yyyymmdd <= c.end_date::TEXT
+WHERE s.stop_name ILIKE 'Rakowiec'
+  AND p.travel_date >= c.start_date
+  AND p.travel_date <= c.end_date
   -- Check if service operates on this day of week
   AND (
     (p.day_of_week = 0 AND c.sunday = 1) OR
@@ -38,7 +36,6 @@ GROUP BY s.stop_name, s.stop_id, r.route_short_name, r.route_long_name, p.day_of
 ORDER BY r.route_short_name
 LIMIT 500;
 
-
 -- ============================================================
 -- QUERY 2: Find routes with departure times for a specific stop on a given date
 -- ============================================================
@@ -46,7 +43,6 @@ LIMIT 500;
 WITH params AS (
     SELECT
         '2025-11-09'::DATE AS travel_date,
-        '20251109' AS travel_date_yyyymmdd,
         EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week
 )
 SELECT
@@ -61,9 +57,9 @@ FROM params p
          JOIN trips t ON st.trip_id = t.trip_id
          JOIN routes r ON t.route_id = r.route_id
          JOIN calendar c ON t.service_id = c.service_id
-WHERE s.stop_name ILIKE '%PKP Rakowiec%'
-  AND p.travel_date_yyyymmdd >= c.start_date::TEXT
-  AND p.travel_date_yyyymmdd <= c.end_date::TEXT
+WHERE s.stop_name ILIKE 'Rakowiec'
+  AND p.travel_date >= c.start_date
+  AND p.travel_date <= c.end_date
   AND (
     (p.day_of_week = 0 AND c.sunday = 1) OR
     (p.day_of_week = 1 AND c.monday = 1) OR
@@ -81,7 +77,6 @@ LIMIT 500;
 -- QUERY 3: Direct trip from A to B (no transfers - same vehicle)
 -- ============================================================
 
--- Helper function to convert time string to minutes
 CREATE OR REPLACE FUNCTION time_to_minutes(time_str TEXT)
     RETURNS INTEGER AS $$
 DECLARE
