@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query2" type="device">
+  <diagram name="Query 2" id="query2">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1-2: Przygotuj datę -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1-2: Przygotuj datę&lt;/b&gt;&lt;br&gt;&lt;br&gt;WITH params AS (&lt;br&gt;    SELECT&lt;br&gt;        '2025-11-09'::DATE AS travel_date,&lt;br&gt;        EXTRACT(DOW FROM '2025-11-09'::DATE) AS day_of_week&lt;br&gt;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="300" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Znajdź przystanek, czasy, kursy, trasy -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 3: Znajdź przystanek, czasy, kursy, trasy&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM params p&lt;br&gt;     CROSS JOIN stops s&lt;br&gt;     JOIN stop_times st ON s.stop_id = st.stop_id&lt;br&gt;     JOIN trips t ON st.trip_id = t.trip_id&lt;br&gt;     JOIN routes r ON t.route_id = r.route_id&lt;br&gt;     JOIN calendar c ON t.service_id = c.service_id&lt;br&gt;WHERE s.stop_name ILIKE 'Rakowiec'&lt;br&gt;  AND p.travel_date &gt;= c.start_date&lt;br&gt;  AND p.travel_date &lt;= c.end_date&lt;br&gt;  AND (sprawdź dzień tygodnia)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="500" height="200" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 4: Zwróć szczegóły czasowe -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 4: Zwróć szczegóły czasowe&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    s.stop_name,&lt;br&gt;    r.route_short_name AS route_number,&lt;br&gt;    st.departure_time,&lt;br&gt;    st.arrival_time,&lt;br&gt;    t.trip_id&lt;br&gt;ORDER BY st.departure_time&lt;br&gt;LIMIT 500;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="500" height="180" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;stop_name: &quot;Rakowiec&quot;&lt;br&gt;route_number: &quot;101&quot;&lt;br&gt;departure_time: &quot;08:00:00&quot;&lt;br&gt;arrival_time: &quot;08:00:00&quot;&lt;br&gt;trip_id: &quot;TRIP_001&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;stop_name: &quot;Rakowiec&quot;&lt;br&gt;route_number: &quot;101&quot;&lt;br&gt;departure_time: &quot;08:30:00&quot;&lt;br&gt;arrival_time: &quot;08:30:00&quot;&lt;br&gt;trip_id: &quot;TRIP_002&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;stop_name: &quot;Rakowiec&quot;&lt;br&gt;route_number: &quot;202&quot;&lt;br&gt;departure_time: &quot;08:45:00&quot;&lt;br&gt;arrival_time: &quot;08:45:00&quot;&lt;br&gt;trip_id: &quot;TRIP_003&quot;&lt;br&gt;&lt;br&gt;... (posortowane chronologicznie)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="540" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query3" type="device">
+  <diagram name="Query 3" id="query3">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Utwórz funkcję pomocniczą -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Utwórz funkcję pomocniczą&lt;/b&gt;&lt;br&gt;&lt;br&gt;CREATE OR REPLACE FUNCTION time_to_minutes(time_str TEXT)&lt;br&gt;    RETURNS INTEGER AS $$&lt;br&gt;BEGIN&lt;br&gt;    parts := string_to_array(time_str, ':');&lt;br&gt;    hours := parts[1]::INTEGER;&lt;br&gt;    minutes := parts[2]::INTEGER;&lt;br&gt;    RETURN hours * 60 + minutes;&lt;br&gt;END;&lt;br&gt;$$ LANGUAGE plpgsql IMMUTABLE;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="160" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Znajdź przystanek początkowy i docelowy -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Znajdź przystanek początkowy i docelowy&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM stops start_stop&lt;br&gt;     JOIN stop_times st1 ON start_stop.stop_id = st1.stop_id&lt;br&gt;     JOIN trips t ON st1.trip_id = t.trip_id&lt;br&gt;     JOIN stop_times st2 ON t.trip_id = st2.trip_id&lt;br&gt;     JOIN stops end_stop ON st2.stop_id = end_stop.stop_id&lt;br&gt;     JOIN routes r ON t.route_id = r.route_id&lt;br&gt;WHERE start_stop.stop_name ILIKE '%PKP Rakowiec%'&lt;br&gt;  AND end_stop.stop_name ILIKE '%Wawelska%'&lt;br&gt;  AND st1.departure_time &gt;= '08:00:00'&lt;br&gt;  AND st1.departure_time &lt;= '18:00:00'&lt;br&gt;  AND st1.stop_sequence &lt; st2.stop_sequence&lt;br&gt;  AND st2.stop_sequence - st1.stop_sequence &lt;= 30" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="220" width="500" height="240" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Oblicz i zwróć wyniki -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Oblicz i zwróć wyniki&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    start_stop.stop_name AS from_stop,&lt;br&gt;    end_stop.stop_name AS to_stop,&lt;br&gt;    r.route_short_name AS route_number,&lt;br&gt;    r.route_long_name AS route_name,&lt;br&gt;    t.trip_id,&lt;br&gt;    st1.departure_time,&lt;br&gt;    st2.arrival_time,&lt;br&gt;    (st2.stop_sequence - st1.stop_sequence) AS stops_between,&lt;br&gt;    (time_to_minutes(st2.arrival_time) - time_to_minutes(st1.departure_time)) AS travel_time_minutes&lt;br&gt;ORDER BY st1.departure_time&lt;br&gt;LIMIT 100;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="500" height="220" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;from_stop: &quot;PKP Rakowiec&quot;&lt;br&gt;to_stop: &quot;Wawelska&quot;&lt;br&gt;route_number: &quot;123&quot;&lt;br&gt;route_name: &quot;Rakowiec - Centrum&quot;&lt;br&gt;trip_id: &quot;TRIP_001&quot;&lt;br&gt;departure_time: &quot;08:15:00&quot;&lt;br&gt;arrival_time: &quot;08:45:00&quot;&lt;br&gt;stops_between: 5&lt;br&gt;travel_time_minutes: 30&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;from_stop: &quot;PKP Rakowiec&quot;&lt;br&gt;to_stop: &quot;Wawelska&quot;&lt;br&gt;route_number: &quot;456&quot;&lt;br&gt;route_name: &quot;Rakowiec - Dworzec&quot;&lt;br&gt;trip_id: &quot;TRIP_002&quot;&lt;br&gt;departure_time: &quot;09:00:00&quot;&lt;br&gt;arrival_time: &quot;09:25:00&quot;&lt;br&gt;stops_between: 8&lt;br&gt;travel_time_minutes: 25&lt;br&gt;&lt;br&gt;... (posortowane według czasu odjazdu)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="660" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

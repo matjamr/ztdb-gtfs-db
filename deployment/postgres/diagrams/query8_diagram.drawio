@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query8" type="device">
+  <diagram name="Query 8" id="query8">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Połącz przystanki z nearby_stops -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Połącz przystanki z nearby_stops&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM stops s&lt;br&gt;     LEFT JOIN nearby_stops ns ON s.stop_id = ns.stop_id_from&lt;br&gt;     LEFT JOIN nearby_stops ns2 ON s.stop_id = ns2.stop_id_to" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Grupuj i zliczaj połączenia -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Grupuj i zliczaj połączenia&lt;/b&gt;&lt;br&gt;&lt;br&gt;GROUP BY s.stop_id, s.stop_name&lt;br&gt;HAVING (COUNT(ns.stop_id_to) + COUNT(ns2.stop_id_from)) &gt; 5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="500" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Oblicz średnią odległość i kategoryzuj -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Oblicz średnią odległość i kategoryzuj&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    s.stop_name AS hub_name,&lt;br&gt;    COUNT(ns.stop_id_to) + COUNT(ns2.stop_id_from) AS connected_stops,&lt;br&gt;    COALESCE(&lt;br&gt;        ROUND(AVG(COALESCE(ns.distance_meters, ns2.distance_meters))),&lt;br&gt;        ROUND(AVG(ns.distance_meters))&lt;br&gt;    ) AS avg_distance_meters,&lt;br&gt;    CASE&lt;br&gt;        WHEN connected_stops &gt;= 20 THEN '⭐⭐⭐ Major hub'&lt;br&gt;        WHEN connected_stops &gt;= 10 THEN '⭐⭐ Important hub'&lt;br&gt;        ELSE '⭐ Transfer point'&lt;br&gt;    END AS importance&lt;br&gt;ORDER BY connected_stops DESC&lt;br&gt;LIMIT 100;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="500" height="240" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;hub_name: &quot;Centrum&quot;&lt;br&gt;connected_stops: 25&lt;br&gt;avg_distance_meters: 180&lt;br&gt;importance: &quot;⭐⭐⭐ Major hub&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;hub_name: &quot;Dworzec Główny&quot;&lt;br&gt;connected_stops: 15&lt;br&gt;avg_distance_meters: 220&lt;br&gt;importance: &quot;⭐⭐ Important hub&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;hub_name: &quot;PKP Rakowiec&quot;&lt;br&gt;connected_stops: 8&lt;br&gt;avg_distance_meters: 195&lt;br&gt;importance: &quot;⭐ Transfer point&quot;&lt;br&gt;&lt;br&gt;... (posortowane malejąco według liczby połączeń)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="520" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
