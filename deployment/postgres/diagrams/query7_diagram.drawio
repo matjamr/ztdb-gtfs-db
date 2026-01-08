@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query7" type="device">
+  <diagram name="Query 7" id="query7">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Znajdź przystanek i czasy -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Znajdź przystanek i czasy&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM stops s&lt;br&gt;     JOIN stop_times st ON s.stop_id = st.stop_id&lt;br&gt;WHERE s.stop_name ILIKE '%PKP Rakowiec%'&lt;br&gt;  AND (SUBSTRING(st.departure_time, 1, 2))::INTEGER &gt;= 6&lt;br&gt;  AND (SUBSTRING(st.departure_time, 1, 2))::INTEGER &lt;= 29" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Wyciągnij godzinę i grupuj -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Wyciągnij godzinę i grupuj&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    (SUBSTRING(st.departure_time, 1, 2))::INTEGER AS hour,&lt;br&gt;    COUNT(*) AS departures&lt;br&gt;GROUP BY (SUBSTRING(st.departure_time, 1, 2))::INTEGER" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="500" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Kategoryzuj częstotliwość -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Kategoryzuj częstotliwość&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    hour,&lt;br&gt;    departures,&lt;br&gt;    CASE&lt;br&gt;        WHEN COUNT(*) &gt;= 600 THEN '🔥🔥🔥 Very frequent'&lt;br&gt;        WHEN COUNT(*) &gt;= 400 THEN '🔥🔥 Frequent'&lt;br&gt;        WHEN COUNT(*) &gt;= 100 THEN '🔥 Regular'&lt;br&gt;        ELSE '⏰ Limited'&lt;br&gt;    END AS frequency&lt;br&gt;ORDER BY hour;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="360" width="500" height="200" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;hour: 6&lt;br&gt;departures: 45&lt;br&gt;frequency: &quot;⏰ Limited&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;hour: 7&lt;br&gt;departures: 120&lt;br&gt;frequency: &quot;🔥 Regular&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;hour: 8&lt;br&gt;departures: 450&lt;br&gt;frequency: &quot;🔥🔥 Frequent&quot;&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;hour: 9&lt;br&gt;departures: 650&lt;br&gt;frequency: &quot;🔥🔥🔥 Very frequent&quot;&lt;br&gt;&lt;br&gt;... (posortowane według godziny)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="520" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

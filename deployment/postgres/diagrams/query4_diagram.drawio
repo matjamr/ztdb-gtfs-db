@@ -1,0 +1,41 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query4" type="device">
+  <diagram name="Query 4" id="query4">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="2000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Utwórz tabelę nearby_stops -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Utwórz tabelę nearby_stops&lt;/b&gt;&lt;br&gt;&lt;br&gt;CREATE TABLE nearby_stops AS&lt;br&gt;SELECT&lt;br&gt;    s1.stop_id AS stop_id_from,&lt;br&gt;    s2.stop_id AS stop_id_to,&lt;br&gt;    distance_meters&lt;br&gt;FROM stops s1 CROSS JOIN stops s2&lt;br&gt;WHERE distance &lt;= 500;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="140" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Pierwszy odcinek -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Pierwszy odcinek podróży&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM stops start_stop&lt;br&gt;     JOIN stop_times st1 ON start_stop.stop_id = st1.stop_id&lt;br&gt;     JOIN trips t1 ON st1.trip_id = t1.trip_id&lt;br&gt;     JOIN stop_times st2 ON t1.trip_id = st2.trip_id&lt;br&gt;     JOIN stops transfer_stop1 ON st2.stop_id = transfer_stop1.stop_id&lt;br&gt;WHERE start_stop.stop_name ILIKE '%PKP Rakowiec%'&lt;br&gt;  AND st1.stop_sequence &lt; st2.stop_sequence&lt;br&gt;  AND st2.stop_sequence - st1.stop_sequence &lt;= 20" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="200" width="500" height="180" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Przesiadka -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Przesiadka (pobliskie przystanki)&lt;/b&gt;&lt;br&gt;&lt;br&gt;LEFT JOIN nearby_stops ns1 ON ns1.stop_id_from = transfer_stop1.stop_id&lt;br&gt;LEFT JOIN nearby_stops ns2 ON ns2.stop_id_to = transfer_stop1.stop_id&lt;br&gt;JOIN stops transfer_stop2 ON (&lt;br&gt;    transfer_stop2.stop_id = COALESCE(ns1.stop_id_to, ns2.stop_id_from)&lt;br&gt;)&lt;br&gt;WHERE distance &lt;= 200&lt;br&gt;  AND (ns1.stop_id_from IS NOT NULL OR ns2.stop_id_to IS NOT NULL)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="500" height="180" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 4: Drugi odcinek -->
+        <mxCell id="step4" value="&lt;b&gt;KROK 4: Drugi odcinek podróży&lt;/b&gt;&lt;br&gt;&lt;br&gt;JOIN stop_times st3 ON transfer_stop2.stop_id = st3.stop_id&lt;br&gt;JOIN trips t2 ON st3.trip_id = t2.trip_id&lt;br&gt;JOIN stop_times st4 ON t2.trip_id = st4.trip_id&lt;br&gt;JOIN stops end_stop ON st4.stop_id = end_stop.stop_id&lt;br&gt;JOIN routes r1 ON t1.route_id = r1.route_id&lt;br&gt;JOIN routes r2 ON t2.route_id = r2.route_id&lt;br&gt;WHERE end_stop.stop_name ILIKE '%PKP Włochy%'&lt;br&gt;  AND st3.stop_sequence &lt; st4.stop_sequence&lt;br&gt;  AND st4.stop_sequence - st3.stop_sequence &lt;= 20&lt;br&gt;  AND t1.trip_id &lt;&gt; t2.trip_id&lt;br&gt;  AND st2.arrival_time &lt; st3.departure_time&lt;br&gt;  AND (time_to_minutes(st3.departure_time) - time_to_minutes(st2.arrival_time)) &lt;= 15" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="600" width="500" height="240" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 5: Zwróć wyniki -->
+        <mxCell id="step5" value="&lt;b&gt;KROK 5: Zwróć wyniki&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    start_stop.stop_name AS from_stop,&lt;br&gt;    transfer_stop1.stop_name AS arrive_at_stop,&lt;br&gt;    transfer_stop2.stop_name AS depart_from_stop,&lt;br&gt;    COALESCE(ns1.distance_meters, ns2.distance_meters) AS walking_distance_meters,&lt;br&gt;    end_stop.stop_name AS to_stop,&lt;br&gt;    r1.route_short_name AS first_route,&lt;br&gt;    r2.route_short_name AS second_route,&lt;br&gt;    st1.departure_time AS depart_from_start,&lt;br&gt;    st2.arrival_time AS arrive_at_transfer,&lt;br&gt;    st3.departure_time AS depart_from_transfer,&lt;br&gt;    st4.arrival_time AS arrive_at_destination,&lt;br&gt;    (time_to_minutes(st3.departure_time) - time_to_minutes(st2.arrival_time)) AS transfer_wait_minutes,&lt;br&gt;    (time_to_minutes(st4.arrival_time) - time_to_minutes(st1.departure_time)) AS total_travel_time_minutes&lt;br&gt;ORDER BY st1.departure_time, total_travel_time_minutes&lt;br&gt;LIMIT 200;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="860" width="500" height="300" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;from_stop: &quot;PKP Rakowiec&quot;&lt;br&gt;arrive_at_stop: &quot;Plac Narutowicza&quot;&lt;br&gt;depart_from_stop: &quot;Plac Narutowicza&quot;&lt;br&gt;walking_distance_meters: 150&lt;br&gt;to_stop: &quot;PKP Włochy&quot;&lt;br&gt;first_route: &quot;123&quot;&lt;br&gt;second_route: &quot;456&quot;&lt;br&gt;depart_from_start: &quot;08:15:00&quot;&lt;br&gt;arrive_at_transfer: &quot;08:35:00&quot;&lt;br&gt;depart_from_transfer: &quot;08:40:00&quot;&lt;br&gt;arrive_at_destination: &quot;09:10:00&quot;&lt;br&gt;transfer_wait_minutes: 5&lt;br&gt;total_travel_time_minutes: 55&lt;br&gt;&lt;br&gt;... (posortowane według czasu odjazdu)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="1120" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

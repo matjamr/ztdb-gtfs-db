@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query6" type="device">
+  <diagram name="Query 6" id="query6">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Połącz przystanki z czasami i kursami -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Połącz przystanki z czasami i kursami&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM stops s&lt;br&gt;     JOIN stop_times st ON s.stop_id = st.stop_id&lt;br&gt;     JOIN trips t ON st.trip_id = t.trip_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Grupuj i zliczaj kursy -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Grupuj i zliczaj kursy&lt;/b&gt;&lt;br&gt;&lt;br&gt;GROUP BY s.stop_id, s.stop_name, s.stop_lat, s.stop_lon&lt;br&gt;HAVING COUNT(DISTINCT t.trip_id) &gt; 50" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="500" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Zwróć wyniki -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Zwróć wyniki&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    s.stop_name,&lt;br&gt;    s.stop_lat AS latitude,&lt;br&gt;    s.stop_lon AS longitude,&lt;br&gt;    COUNT(DISTINCT t.trip_id) AS trips_per_day&lt;br&gt;ORDER BY trips_per_day DESC&lt;br&gt;LIMIT 20;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="500" height="160" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;stop_name: &quot;PKP Rakowiec&quot;&lt;br&gt;latitude: 52.123456&lt;br&gt;longitude: 21.123456&lt;br&gt;trips_per_day: 450&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;stop_name: &quot;Centrum&quot;&lt;br&gt;latitude: 52.234567&lt;br&gt;longitude: 21.234567&lt;br&gt;trips_per_day: 380&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;stop_name: &quot;Dworzec Główny&quot;&lt;br&gt;latitude: 52.345678&lt;br&gt;longitude: 21.345678&lt;br&gt;trips_per_day: 320&lt;br&gt;&lt;br&gt;... (posortowane malejąco według liczby kursów)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="440" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query9" type="device">
+  <diagram name="Query 9" id="query9">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Oblicz statystyki dla każdego kursu -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Oblicz statystyki dla każdego kursu&lt;/b&gt;&lt;br&gt;&lt;br&gt;WITH trip_stats AS (&lt;br&gt;    SELECT&lt;br&gt;        t.trip_id,&lt;br&gt;        t.route_id,&lt;br&gt;        COUNT(st.stop_sequence) AS total_stops,&lt;br&gt;        MIN(time_to_minutes(st.departure_time)) AS first_time_minutes,&lt;br&gt;        MAX(time_to_minutes(st.arrival_time)) AS last_time_minutes&lt;br&gt;    FROM trips t&lt;br&gt;             JOIN stop_times st ON t.trip_id = st.trip_id&lt;br&gt;    GROUP BY t.trip_id, t.route_id&lt;br&gt;    HAVING COUNT(st.stop_sequence) &gt; 20&lt;br&gt;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="220" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Połącz z trasami i znajdź maksima -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Połącz z trasami i znajdź maksima&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM trip_stats ts&lt;br&gt;     JOIN routes r ON ts.route_id = r.route_id&lt;br&gt;GROUP BY r.route_short_name" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="500" height="120" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Zwróć najdłuższe kursy -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Zwróć najdłuższe kursy&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    r.route_short_name AS route,&lt;br&gt;    MAX(ts.total_stops) AS number_of_stops,&lt;br&gt;    MAX(ts.last_time_minutes - ts.first_time_minutes) AS duration_minutes&lt;br&gt;ORDER BY number_of_stops DESC&lt;br&gt;LIMIT 10;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="420" width="500" height="160" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;route: &quot;101&quot;&lt;br&gt;number_of_stops: 45&lt;br&gt;duration_minutes: 120&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;route: &quot;202&quot;&lt;br&gt;number_of_stops: 38&lt;br&gt;duration_minutes: 95&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;route: &quot;303&quot;&lt;br&gt;number_of_stops: 32&lt;br&gt;duration_minutes: 85&lt;br&gt;&lt;br&gt;... (posortowane malejąco według liczby przystanków)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="540" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

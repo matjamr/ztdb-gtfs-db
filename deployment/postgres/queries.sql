@@ -19,7 +19,7 @@ FROM params p
          JOIN trips t ON st.trip_id = t.trip_id
          JOIN routes r ON t.route_id = r.route_id
          JOIN calendar c ON t.service_id = c.service_id
-WHERE s.stop_name ILIKE 'Rakowiec'
+WHERE s.stop_name ILIKE 'PKP Rakowiec'
   AND p.travel_date >= c.start_date
   AND p.travel_date <= c.end_date
   -- Check if service operates on this day of week
@@ -303,3 +303,104 @@ WHERE s1.stop_name ILIKE '%PKP Rakowiec%'
       ) <= 300
 ORDER BY distance_meters
 LIMIT 20;
+
+-- ============================================================
+-- QUERY 5: Discover all routes with their trip counts
+-- ============================================================
+SELECT
+    r.route_short_name AS route_number,
+    CASE r.route_type
+        WHEN 0 THEN 'Tram'
+        WHEN 1 THEN 'Subway'
+        WHEN 2 THEN 'Rail'
+        WHEN 3 THEN 'Bus'
+        WHEN 4 THEN 'Ferry'
+        ELSE 'Other'
+    END AS vehicle_type,
+    COUNT(DISTINCT t.trip_id) AS total_trips
+FROM routes r
+         LEFT JOIN trips t ON r.route_id = t.route_id
+GROUP BY r.route_short_name, r.route_type
+ORDER BY total_trips DESC
+LIMIT 100;
+
+-- ============================================================
+-- QUERY 6: Find the busiest stops (most trips per day)
+SELECT
+    s.stop_name,
+    s.stop_lat AS latitude,
+    s.stop_lon AS longitude,
+    COUNT(DISTINCT t.trip_id) AS trips_per_day
+FROM stops s
+         JOIN stop_times st ON s.stop_id = st.stop_id
+         JOIN trips t ON st.trip_id = t.trip_id
+GROUP BY s.stop_id, s.stop_name, s.stop_lat, s.stop_lon
+HAVING COUNT(DISTINCT t.trip_id) > 50
+ORDER BY trips_per_day DESC
+LIMIT 20;
+
+-- ============================================================
+-- QUERY 7: Show frequency pattern for a stop
+SELECT
+    (SUBSTRING(st.departure_time, 1, 2))::INTEGER AS hour,
+    COUNT(*) AS departures,
+    CASE
+        WHEN COUNT(*) >= 600 THEN '🔥🔥🔥 Very frequent'
+        WHEN COUNT(*) >= 400 THEN '🔥🔥 Frequent'
+        WHEN COUNT(*) >= 100 THEN '🔥 Regular'
+        ELSE '⏰ Limited'
+    END AS frequency
+FROM stops s
+         JOIN stop_times st ON s.stop_id = st.stop_id
+WHERE s.stop_name ILIKE '%PKP Rakowiec%'
+  AND (SUBSTRING(st.departure_time, 1, 2))::INTEGER >= 6
+  AND (SUBSTRING(st.departure_time, 1, 2))::INTEGER <= 29  -- Allow up to 29:59 (5:59 AM next day)
+GROUP BY (SUBSTRING(st.departure_time, 1, 2))::INTEGER
+ORDER BY hour;
+
+
+-- ============================================================
+-- QUERY 8: Find transfer hubs (stops with many nearby connections)
+SELECT
+    s.stop_name AS hub_name,
+    COUNT(ns.stop_id_to) + COUNT(ns2.stop_id_from) AS connected_stops,
+    COALESCE(
+        ROUND(AVG(COALESCE(ns.distance_meters, ns2.distance_meters))),
+        ROUND(AVG(ns.distance_meters))
+    ) AS avg_distance_meters,
+    CASE
+        WHEN (COUNT(ns.stop_id_to) + COUNT(ns2.stop_id_from)) >= 20 THEN '⭐⭐⭐ Major hub'
+        WHEN (COUNT(ns.stop_id_to) + COUNT(ns2.stop_id_from)) >= 10 THEN '⭐⭐ Important hub'
+        ELSE '⭐ Transfer point'
+    END AS importance
+FROM stops s
+         LEFT JOIN nearby_stops ns ON s.stop_id = ns.stop_id_from
+         LEFT JOIN nearby_stops ns2 ON s.stop_id = ns2.stop_id_to
+GROUP BY s.stop_id, s.stop_name
+HAVING (COUNT(ns.stop_id_to) + COUNT(ns2.stop_id_from)) > 5
+ORDER BY connected_stops DESC
+LIMIT 100;
+
+-- ============================================================
+-- QUERY 9: Find longest single-trip journeys (distinct by route)
+WITH trip_stats AS (
+    SELECT
+        t.trip_id,
+        t.route_id,
+        COUNT(st.stop_sequence) AS total_stops,
+        MIN(time_to_minutes(st.departure_time)) AS first_time_minutes,
+        MAX(time_to_minutes(st.arrival_time)) AS last_time_minutes
+    FROM trips t
+             JOIN stop_times st ON t.trip_id = st.trip_id
+    GROUP BY t.trip_id, t.route_id
+    HAVING COUNT(st.stop_sequence) > 20
+)
+SELECT
+    r.route_short_name AS route,
+    MAX(ts.total_stops) AS number_of_stops,
+    MAX(ts.last_time_minutes - ts.first_time_minutes) AS duration_minutes
+FROM trip_stats ts
+         JOIN routes r ON ts.route_id = r.route_id
+GROUP BY r.route_short_name
+ORDER BY number_of_stops DESC
+LIMIT 10;

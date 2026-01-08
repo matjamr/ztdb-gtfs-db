@@ -1,0 +1,31 @@
+<mxfile host="app.diagrams.net" modified="2024-01-01T00:00:00.000Z" agent="5.0" version="21.0.0" etag="query5" type="device">
+  <diagram name="Query 5" id="query5">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="1654" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        
+        <!-- KROK 1: Połącz trasy z kursami -->
+        <mxCell id="step1" value="&lt;b&gt;KROK 1: Połącz trasy z kursami&lt;/b&gt;&lt;br&gt;&lt;br&gt;FROM routes r&lt;br&gt;     LEFT JOIN trips t ON r.route_id = t.route_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="500" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 2: Grupuj i zliczaj -->
+        <mxCell id="step2" value="&lt;b&gt;KROK 2: Grupuj i zliczaj kursy&lt;/b&gt;&lt;br&gt;&lt;br&gt;GROUP BY r.route_short_name, r.route_type" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="160" width="500" height="100" as="geometry" />
+        </mxCell>
+        
+        <!-- KROK 3: Zwróć wyniki z typem pojazdu -->
+        <mxCell id="step3" value="&lt;b&gt;KROK 3: Zwróć wyniki z typem pojazdu&lt;/b&gt;&lt;br&gt;&lt;br&gt;SELECT&lt;br&gt;    r.route_short_name AS route_number,&lt;br&gt;    CASE r.route_type&lt;br&gt;        WHEN 0 THEN 'Tram'&lt;br&gt;        WHEN 1 THEN 'Subway'&lt;br&gt;        WHEN 2 THEN 'Rail'&lt;br&gt;        WHEN 3 THEN 'Bus'&lt;br&gt;        WHEN 4 THEN 'Ferry'&lt;br&gt;        ELSE 'Other'&lt;br&gt;    END AS vehicle_type,&lt;br&gt;    COUNT(DISTINCT t.trip_id) AS total_trips&lt;br&gt;ORDER BY total_trips DESC&lt;br&gt;LIMIT 100;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="500" height="220" as="geometry" />
+        </mxCell>
+        
+        <!-- Przykładowy wynik -->
+        <mxCell id="result" value="&lt;b&gt;Przykładowy wynik:&lt;/b&gt;&lt;br&gt;&lt;br&gt;route_number: &quot;101&quot;&lt;br&gt;vehicle_type: &quot;Bus&quot;&lt;br&gt;total_trips: 245&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;route_number: &quot;202&quot;&lt;br&gt;vehicle_type: &quot;Tram&quot;&lt;br&gt;total_trips: 180&lt;br&gt;&lt;br&gt;---&lt;br&gt;&lt;br&gt;route_number: &quot;303&quot;&lt;br&gt;vehicle_type: &quot;Rail&quot;&lt;br&gt;total_trips: 95&lt;br&gt;&lt;br&gt;... (posortowane malejąco według liczby kursów)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;align=left;verticalAlign=top;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="600" y="40" width="400" height="460" as="geometry" />
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
